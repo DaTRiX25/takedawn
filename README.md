@@ -160,9 +160,9 @@ It needs the North American Xbox version of the game.
 
 | Platform | File | Size |
 |---|---|---|
-| Mac (Apple silicon, macOS 13 or newer) | `Takedawn-0.1.0-macos-arm64.dmg` | about 19 MB |
-| Windows (64-bit) | `Takedawn-0.1.0-windows-x64-setup.exe` | about 18 MB |
-| Linux and Steam Deck (x86-64) | `Takedawn-0.1.0-linux-x86_64.AppImage` | about 23 MB |
+| Mac (Apple silicon, macOS 13 or newer) | [`Takedawn-0.1.0-macos-arm64.dmg`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-macos-arm64.dmg) | about 19 MB |
+| Windows (64-bit) | [`Takedawn-0.1.0-windows-x64-setup.exe`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-windows-x64-setup.exe) | about 18 MB |
+| Linux and Steam Deck (x86-64) | [`Takedawn-0.1.0-linux-x86_64.AppImage`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-linux-x86_64.AppImage) | about 23 MB |
 | Android (arm64, Snapdragon), experimental | `Takedawn-0.1.0-android-arm64.apk` | about 13 MB |
 
 All files are on the [releases page][releases], with a `SHA256SUMS` file and a
