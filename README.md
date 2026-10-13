@@ -96,8 +96,9 @@
 
 Takedawn runs the original Xbox release of *Burnout 3: Takedown* as an
 ordinary program on your device. The game's own code was translated ahead of
-time into a native program for x86-64 and arm64, so the menus, the races and
-Crash mode run the game's own code (see [how it works](#how-it-works)).
+time into a native program for x86-64 and arm64. The menus, the races and
+Crash mode all run that translated code (see [how it works](#how-it-works)).
+It needs the North American Xbox version of the game.
 
 The download is the program. The game data (cars, tracks, sound, films) comes
 from your own disc: on first start Takedawn asks for a copy of it, checks
@@ -106,33 +107,31 @@ the console could not do: a higher internal resolution, widescreen with an
 undistorted HUD, ultrawide, and a settings menu you can open in the middle of
 a race.
 
-It needs the North American Xbox version of the game.
-
 ## Highlights
 
-- Higher resolution. The 3D picture renders at 1x to 4x of the console's
-  640x480, and at 1.5x on Android.
-- Widescreen with a HUD that is not stretched. The game has its own 16:9
-  mode, which stretches the 2D HUD by a third. The fix keeps the HUD in shape
-  at the edges of the picture.
-- Ultrawide. At 21:9 and 32:9 races are drawn for the whole width, with more
-  to see at the sides. Menus and films stay 16:9 in the middle.
-- 60 frames per second, locked to your display, also on 120 Hz screens.
-- Crash cameras at 60. The console drops to 30 while a crash plays; a switch
-  keeps them at 60, in races and in Crash mode.
-- Split screen at 60, and with music. The console runs two-player races at 30
-  and without music; both can be switched on.
-- Skippable tutorial films. A or Start skips the training film that plays
-  before a mode's first event, which the console makes you sit through.
-- Your own music. Point it at a folder of MP3, FLAC, Ogg or WAV files and
-  pick it in the game's EA GAMES TRAX menu like a custom soundtrack on the
-  Xbox. Each folder is a soundtrack, and songs are brought to the level of the
-  game's own music. On Android the game asks for access to your music files
-  the first time you open that menu row.
-- 5.1 surround. A mixer lets you set each sound group (music,
-  engines, crashes and more) per speaker, with a recommended 5.1 preset.
-- Sharper menus and HUD. The game's 2D art is redrawn at 2x or 4x with an
-  edge-following scaler, so text and icons stay crisp at high resolutions.
+- The 3D picture renders at 1x to 4x of the console's 640x480, and at 1.5x on
+  Android.
+- The game's own 16:9 mode stretches the 2D HUD by a third. The widescreen HUD
+  fix keeps it in shape at the edges of the picture.
+- At 21:9 and 32:9, races are drawn for the whole width, with more to see at
+  the sides. Menus and films stay 16:9 in the middle.
+- The game runs at 60 frames per second, locked to your display, also on
+  120 Hz screens.
+- The console drops to 30 while a crash plays. A switch keeps crash cameras at
+  60, in races and in Crash mode.
+- The console runs two-player races at 30 and without music. Both 60 and music
+  can be switched on for split screen.
+- A or Start skips the training film that plays before a mode's first event.
+  On the console you have to sit through it.
+- You can play your own music. Point it at a folder of MP3, FLAC, Ogg or WAV
+  files and pick it in the game's EA GAMES TRAX menu like a custom soundtrack
+  on the Xbox. Each folder is a soundtrack, and songs are brought to the level
+  of the game's own music. On Android the game asks for access to your music
+  files the first time you open that menu row.
+- 5.1 surround sound, with a mixer that sets each sound group (music,
+  engines, crashes and more) per speaker and a recommended 5.1 preset.
+- The game's 2D art is redrawn at 2x or 4x with an edge-following scaler, so
+  menu and HUD text and icons stay crisp at high resolutions.
 - Anti-aliasing (FXAA or SMAA), sharpening, up to 16x anisotropic filtering,
   sharper distant textures, and rival cars that keep their detail further
   away. The game's bloom and motion blur can be switched off.
@@ -141,20 +140,18 @@ It needs the North American Xbox version of the game.
   and pause menus. It pauses the game.
 - Button prompts for your controller: Xbox, PlayStation (DualShock and
   DualSense), Nintendo, Steam, or a neutral set that shows the button's
-  position. Picked from the controller you use.
+  position. They follow the controller you use.
 - The PlayStation 2 version's driving controls as an option: accelerate and
-  brake on the face buttons, boost on the right shoulder. Rumble with a
-  strength setting, a Nintendo face-button layout, and km/h if you prefer it.
-- Safer saves. Every save keeps the previous version, and the last ones can be
-  restored from the menu. Saves can be exported and imported, also between
-  platforms.
+  brake on the face buttons, boost on the right shoulder. There is also rumble
+  with a strength setting, a Nintendo face-button layout, and km/h.
+- Every save keeps the previous version, and the last ones can be restored
+  from the menu. Saves can be exported and imported, also between platforms.
 - A setup window that checks your disc image file by file. An interrupted
   install never leaves a half-installed game. A ticked box prepares the
   graphics during install, so the first races don't hitch.
-- One-step bug reports: logs, settings and a system summary in one zip file,
-  with your user name and home folder taken out.
-- Check for updates in the settings menu on desktop. The program goes online
-  only when you press it.
+- A bug report takes one step. Logs, settings and a system summary go into one
+  zip file, with your user name and home folder taken out.
+- On desktop, the settings menu can check for updates.
 
 ## Download
 
@@ -245,13 +242,14 @@ report zip from Advanced > Create bug report helps a lot.
    Choose your disc image or folder, or drop it on the window. Takedawn says
    at once whether it is the right game and version. On Linux and the Steam
    Deck it also looks for the disc in the usual places and offers what it
-   finds. Press Install. It copies
-   the data into your user folder and checks every one of the 716 files
-   against a list of known sizes and SHA-256 sums. This took 3 to 10 seconds
-   on the tested computers and the Steam Deck. Afterwards you can delete the disc image.
+   finds. Press Install. It copies the data into your user folder and checks
+   every one of the 716 files against a list of known sizes and SHA-256 sums.
+   This took 3 to 10 seconds on the tested computers and the Steam Deck.
+   Afterwards you can delete the disc image.
 4. Press Play. The setup window's "Prepare graphics" box, ticked by default,
-   runs the optional [shader pre-build](#the-shader-pre-build) first. The settings open with Back and Start together on a controller, or
-   F1 on a keyboard.
+   runs the optional [shader pre-build](#the-shader-pre-build) first. The
+   settings open with Back and Start together on a controller, or F1 on a
+   keyboard.
 
 Your saves and settings are kept apart from the program and from the game
 data, so they stay when you update.
@@ -259,9 +257,9 @@ data, so they stay when you update.
 ### How to update
 
 Updates are manual. On a desktop, Settings > Advanced > Check for updates
-says whether a newer version is out; nothing is downloaded. The Advanced page
-also shows the version you have. Look at the [releases page][releases] for a
-newer one.
+says whether a newer version is out, and the Advanced page shows the version
+you have. You download the new version yourself from the
+[releases page][releases].
 
 - Mac: quit Takedawn, drag the new one into Applications and choose Replace,
   then allow it once more with Open Anyway.
@@ -380,14 +378,15 @@ menu > Performance).
    and Start again to play.
 
 On a Deck a first start uses full screen, the game's 16:9 mode with the
-widescreen HUD fix, render scale 2 and SMAA. You can change all of it in the settings. To open them, hold View (the
-button with two squares) and press Menu (three lines).
+widescreen HUD fix, render scale 2 and SMAA. You can change all of it in the
+settings. To open them, hold View (the button with two squares) and press
+Menu (three lines).
 
 Tips for the Deck are under [Tips for smooth play](#tips-for-smooth-play).
 
 ### Android (experimental)
 
-The Android build has been tested on one device, a Retroid Pocket 5. Expect rough edges.
+The Android build is tested on a Retroid Pocket 5. The [Devices](#devices) list shows the phones it has also run on.
 
 1. Download the APK on the device and open it. Android asks whether the app
    you opened it with (the browser or the file manager) may install unknown
@@ -407,8 +406,8 @@ On a Retroid Pocket, keep the device's own controller mode on Xbox and use
 Input > Face buttons in the game for the Nintendo layout. The device's Retro
 mode swaps buttons where the game can't see it, so the prompts can't follow it.
 
-The game needs Vulkan 1.3. Most Snapdragon devices ship a
-driver that offers less, so the APK carries Mesa's open-source Turnip driver
+The game needs Vulkan 1.3. Most Snapdragon devices ship a driver that offers
+less, so the APK carries Mesa's open-source Turnip driver
 and loads it inside the app. Nothing outside the app is changed and no root
 access is needed. You can choose the driver in three places: the second entry
 in the launcher, "Takedawn: graphics driver"; a button on the setup page; and
@@ -453,8 +452,8 @@ menus, with Back and Start together on a controller (View and Menu on a Steam
 Deck, Select and Start on a Retroid Pocket), or with F1 on a keyboard.
 
 Input > Button prompts picks the prompt pictures (Auto follows the controller
-in use). With the PS2 layout, the prompts still show the game's own buttons (in Crash
-mode the Crashbreaker prompt says B, while R2 fires it). The PS2 layout and
+in use). With the PS2 layout, the prompts still show the game's own buttons
+(in Crash mode the Crashbreaker prompt says B, while R2 fires it). The PS2 layout and
 the Nintendo face-button layout are described in
 [docs/controls.md](docs/controls.md).
 
@@ -603,8 +602,7 @@ shader cache or shader list is shipped with Takedawn.
 
 The game's own target is 60 frames per second, with 30 in some crash cameras
 and replays. A frame at 60 lasts 16.7 ms. The numbers below are frame times in
-a race. "p99" is the 99th
-percentile: 99 of 100 frames were at least that fast.
+a race. "p99" is the 99th percentile: 99 of 100 frames were at least that fast.
 
 | Device | Settings | Result |
 |---|---|---|
@@ -619,7 +617,8 @@ percentile: 99 of 100 frames were at least that fast.
 | Retroid Pocket 5 | Render scale 1.5, busy race, bloom and motion blur on | 1.0% of frames over 18.5 ms |
 | Retroid Pocket 5 | The same with both off | 0.5% of frames over 18.5 ms |
 
-The watt figures are the Deck's own power reading over two runs each. The Retroid Pocket 5 rows are from a build before the current Turnip setting
+The watt figures are the Deck's own power reading over two runs each. The
+Retroid Pocket 5 rows are from a build before the current Turnip setting
 (`TU_DEBUG=nobin,noubwc`), which adds a few slow frames.
 
 What has not been measured:
@@ -784,9 +783,8 @@ The zip holds the logs of the last runs, crash and hang reports, your
 settings, a summary of your system and the session's frame times. It is
 between 70 and 130 KB. Your home folder is written as `~`, and your user name
 and the computer's name are replaced. It contains no saves, no game data and
-no shader cache. Nothing is sent anywhere: you can open the file and read it
-before you attach it. The full list of what is in it is in
-[docs/running.md](docs/running.md#reporting-a-bug).
+no shader cache. You can open the file and read it before you attach it. The
+full list of what is in it is in [docs/running.md](docs/running.md#reporting-a-bug).
 
 Never attach game files or disc images to an issue.
 [CONTRIBUTING.md](CONTRIBUTING.md) says how reports and pull requests are
@@ -825,9 +823,9 @@ on Windows, Linux and Android.
 
 No game logic and no screen is rewritten by hand. The optional features that
 change the game (km/h, the widescreen HUD, ultrawide, the bloom and motion
-blur switches, vehicle detail distance) change values in the game's own code at places listed in
-[`config/patches.json`](config/patches.json), and do nothing when they are
-off.
+blur switches, vehicle detail distance) change values in the game's own code
+at places listed in [`config/patches.json`](config/patches.json), and do
+nothing when they are off.
 
 The program contains the translated code of the game's executable. It
 contains none of the game's data. More in
@@ -907,8 +905,8 @@ Takedawn grew out of other people's work:
   helped to find the matching places in the Xbox code. No code was taken.
 - xemu, Cxbx-Reloaded and xboxdevwiki, the toolkit's references for how the
   hardware behaves.
-- Xerenge, Dolphin and Unleashed Recompiled, for ideas: bring
-  your own disc with a prebuilt program, the setup window's flow, the bug
+- Xerenge, Dolphin and Unleashed Recompiled, for ideas: bring your own disc
+  with a prebuilt program, the setup window's flow, the bug
   report, and a shader list compiled at start. No code was taken.
 
 What is inside the downloads:
@@ -935,8 +933,8 @@ What is inside the downloads:
 The xemu-derived sound-chip code is linked into the program. Every package
 carries its licence text and attribution in a `licenses` folder, with a
 `SOURCE.txt` that names the two source commits the program was built from, and
-that source is published with each release. The full list, with sources
-and copyright lines, is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+that source is published with each release. The full list, with sources and
+copyright lines, is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 People who contributed are in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## How this was made
@@ -944,8 +942,7 @@ People who contributed are in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 I build Takedawn with AI coding agents (Claude) doing much of the typing. I
 decide what goes in, review the changes and test them on hardware I own: a
 Mac, a Steam Deck, a Bazzite PC, a Windows PC, an Ubuntu PC and a Retroid
-Pocket 5. Changes
-are tested there in real races, with measured frame times, before they are
+Pocket 5. Changes are tested there in real races, with measured frame times, before they are
 merged. The recompiler and the runtime are the xboxrecomp toolkit, started by
 sp00nz and carlos; a good part of my work went into it as well.
 
@@ -959,8 +956,8 @@ To every Burnout fan still waiting for the next one: we are the Lazy Generation.
 
 Takedawn's own code is under the MIT licence, see [LICENSE](LICENSE).
 
-Third-party components keep their own licences, listed above. The licence covers this project's code
-only. It grants nothing in the game.
+Third-party components keep their own licences, listed above. The licence
+covers this project's code only. It grants nothing in the game.
 
 ## Legal notice
 
@@ -976,9 +973,8 @@ their owners. They are used here only to say what Takedawn works with. The
 game is named only to say which game this project runs. No logo, box art or
 other artwork of the game is used. The Takedawn icon and the button prompt
 pictures are original artwork, and no console maker's artwork or font is used
-in them. The
-release codename is a song title and nothing more: no lyrics, sound or artwork
-of the song are used.
+in them. The release codename is a song title. No lyrics, sound or artwork of
+the song are used.
 
 No game data is included or distributed. The downloads contain the program,
 which holds code translated from the game's executable, and no textures,
@@ -986,8 +982,7 @@ models, sound, music, films, disc files, shader caches or shader lists. To
 play you need your own, legally obtained disc of the game, and Takedawn takes
 the data from your copy of it.
 
-The screenshots on this page show Takedawn running on my
-machines. The game content visible in them belongs to its owners.
+The screenshots on this page show Takedawn running on my machines. The game content visible in them belongs to its owners.
 
 The software is provided "as is", without warranty of any kind, as set out in
 the MIT licence.
