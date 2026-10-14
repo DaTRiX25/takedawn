@@ -207,7 +207,8 @@ report zip from Advanced > Create bug report helps a lot.
 | AYN Odin 3 | Uncertain, not tested. Its GPU is new to the bundled driver and it ships Android 15, which may restrict how the driver is loaded |
 | Steam Deck LCD, other Linux distributions | Not tested |
 | Windows 11 laptop, Intel Core Ultra 5 228V (integrated graphics) | Runs. 40 to 60 fps even at render scale 1 |
-| PCs with NVIDIA graphics | Not tested |
+| Windows desktop, AMD Ryzen 5 9600X, NVIDIA GeForce RTX 5060 Ti 16 GB | Runs. A friend's short test held a steady 60 fps at render scale 3 and 4 |
+| Other PCs with NVIDIA graphics | Not tested |
 | Linux PCs with Intel graphics | Not tested |
 | Intel Macs | Not supported. There is no Intel build |
 | Android devices without a Snapdragon chip (Mali, PowerVR, Xclipse graphics) | Not supported yet. If the device's own driver supports Vulkan 1.3, it might work |
