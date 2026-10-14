@@ -36,8 +36,8 @@
 
 - Takedawn runs the original Xbox *Burnout 3: Takedown* as a native program.
 - Compared with the console: up to 4x resolution, widescreen and ultrawide,
-  60 fps crash cameras, and music and 60 fps in split screen. The Xbox custom
-  soundtracks work with a folder of your own MP3 or FLAC files.
+  60 fps crash cameras, and music and 60 fps in split screen. Custom
+  soundtracks play from a folder of your own MP3 or FLAC files.
   [Highlights](#highlights) has the rest.
 - [Download](#download) it for your device and start it.
 - Point it at a disc image of your own Burnout 3 (USA). It installs the game
@@ -63,7 +63,7 @@
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/takedawn-05a-settings-graphics.jpg" alt="The settings menu over a paused race, on the Graphics page, with the rows Render scale, Anisotropic filtering, Anti-aliasing and Sharpening"><br><sub>Settings, Graphics page.</sub></td>
-    <td width="50%"><img src="docs/screenshots/takedawn-09c-pause-menu-playstation.jpg" alt="The game's pause menu with TAKEDAWN SETTINGS selected and PlayStation button prompts at the foot"><br><sub>Pause menu with a PlayStation pad.</sub></td>
+    <td width="50%"><img src="docs/screenshots/takedawn-09c-pause-menu-playstation.jpg" alt="The game's pause menu with TAKEDAWN SETTINGS selected and PlayStation button prompts at the bottom"><br><sub>Pause menu with a PlayStation pad.</sub></td>
   </tr>
 </table>
 
@@ -104,58 +104,59 @@ time into a native program for x86-64 and arm64. The menus, the races and
 Crash mode all run that translated code (see [how it works](#how-it-works)).
 It needs the North American Xbox version of the game.
 
-The download is the program. The game data (cars, tracks, sound, films) comes
-from your own disc: on first start Takedawn asks for a copy of it, checks
-every file and copies the data into place. After that you play, with things
-the console could not do: a higher internal resolution, widescreen with an
-undistorted HUD, ultrawide, and a settings menu you can open in the middle of
-a race.
+The download is only the program. The game data (cars, tracks, sound, films)
+comes from your own disc: on first start Takedawn asks for a copy of it,
+checks every file and copies the data into place. Then you play, with a few
+things the console couldn't do: a higher internal resolution, widescreen with
+an undistorted HUD, ultrawide, and a settings menu you can open mid-race.
 
 ## Highlights
 
-- The 3D picture renders at 1x to 4x of the console's 640x480, and at 1.5x on
-  Android.
-- The game's own 16:9 mode stretches the 2D HUD by a third. The widescreen HUD
-  fix keeps it in shape at the edges of the picture.
-- At 21:9 and 32:9, races are drawn for the whole width, with more to see at
-  the sides. Menus and films stay 16:9 in the middle.
-- The game runs at 60 frames per second, locked to your display, also on
-  120 Hz screens.
-- The console drops to 30 while a crash plays. A switch keeps crash cameras at
-  60, in races and in Crash mode.
-- The console runs two-player races at 30 and without music. Both 60 and music
-  can be switched on for split screen.
-- A or Start skips the training film that plays before a mode's first event.
-  On the console you have to sit through it.
-- You can play your own music. Point it at a folder of MP3, FLAC, Ogg or WAV
-  files and pick it in the game's EA GAMES TRAX menu like a custom soundtrack
-  on the Xbox. Each folder is a soundtrack, and songs are brought to the level
-  of the game's own music. On Android the game asks for access to your music
-  files the first time you open that menu row.
-- 5.1 surround sound, with a mixer that sets each sound group (music,
-  engines, crashes and more) per speaker and a recommended 5.1 preset.
-- The game's 2D art is redrawn at 2x or 4x with an edge-following scaler, so
-  menu and HUD text and icons stay crisp at high resolutions.
+- Render scale from 1x (640x480, as on the console) to 4x (2560x1920).
+  Android also has 1.5x.
+- The game's own 16:9 mode stretches the HUD by a third. The widescreen HUD
+  fix keeps it in its 4:3 shape, at the edges of the screen.
+- Ultrawide at 21:9 and 32:9: races fill the whole width and show more at the
+  sides. Menus and films stay 16:9 in the middle.
+- 60 fps, locked to your display's refresh, also on 120 Hz screens.
+- Crash cameras can run at 60 fps instead of the console's 30, in races and in
+  Crash mode.
+- Split screen can run at 60 fps and with music. The console runs it at 30
+  with no music.
+- A or Start skips the training film before a mode's first event, which the
+  console makes you sit through.
+- Your own music: choose a folder of MP3, FLAC, Ogg or WAV files and pick it
+  in the game's EA GAMES TRAX menu, like a custom soundtrack on the Xbox. Each
+  folder is one soundtrack, and each song's volume is matched to the game's
+  music. On Android the game asks for access to your music files the first
+  time you open that menu row.
+- 5.1 surround, with a per-speaker mix for each sound group (music, engines,
+  crashes and more) and a recommended 5.1 preset.
+- Menu and HUD upscaling redraws the game's 2D art at 2x or 4x with an
+  edge-following scaler, so text and icons stay sharp at high render scales.
 - Anti-aliasing (FXAA or SMAA), sharpening, up to 16x anisotropic filtering,
   sharper distant textures, and rival cars that keep their detail further
-  away. The game's bloom and motion blur can be switched off.
-- A settings menu drawn in the game's own style, with its fonts and buttons.
-  Open it with Back and Start, F1, or TAKEDAWN SETTINGS in the game's Settings
-  and pause menus. It pauses the game.
+  away. You can switch off the game's bloom and motion blur.
+- A settings menu in the game's own style, with its fonts and buttons. Open it
+  with Back and Start, F1, or TAKEDAWN SETTINGS in the game's Settings and
+  pause menus. The game pauses while it's open.
 - Button prompts for your controller: Xbox, PlayStation (DualShock and
   DualSense), Nintendo, Steam, or a neutral set that shows the button's
-  position. They follow the controller you use.
-- The PlayStation 2 version's driving controls as an option: accelerate and
-  brake on the face buttons, boost on the right shoulder. There is also rumble
-  with a strength setting, a Nintendo face-button layout, and km/h.
-- Every save keeps the previous version, and the last ones can be restored
-  from the menu. Saves can be exported and imported, also between platforms.
+  position. They switch to whatever controller you're using.
+- Optional PS2 driving controls: accelerate and brake on the face buttons,
+  boost on the right shoulder. Also rumble strength, a Nintendo face-button
+  layout, and km/h.
+- Before each save the game keeps a copy of the old one, and you can restore
+  an earlier save from the menu. Saves can be exported and imported, including
+  between platforms.
 - A setup window that checks your disc image file by file. An interrupted
-  install never leaves a half-installed game. A ticked box prepares the
-  graphics during install, so the first races don't hitch.
-- A bug report takes one step. Logs, settings and a system summary go into one
-  zip file, with your user name and home folder taken out.
-- On desktop, the settings menu can check for updates.
+  install never leaves you with a half-installed game. The setup can also
+  build the shaders before you first play (the box is ticked by default), so
+  the first races don't hitch.
+- Advanced > Create bug report puts the logs, settings and a system summary in
+  one zip, with your user name and home folder removed.
+- On desktop, Advanced > Check for updates tells you whether a newer version
+  is out.
 
 ## Download
 
@@ -204,10 +205,10 @@ report zip from Advanced > Create bug report helps a lot.
 | Linux desktop with an AMD graphics card (Bazzite) | Tested |
 | Ubuntu 24.04 with AMD integrated graphics (Ryzen 7 5825U) | Tested |
 | Retroid Pocket 5 | Tested |
-| Samsung Galaxy S20 FE (Snapdragon 865) | Runs. A one-hour session ran without problems. Slower than the Retroid Pocket 5 once the phone warms up |
+| Samsung Galaxy S20 FE (Snapdragon 865) | Runs. A one-hour session had no problems. Slower than the Retroid Pocket 5 once the phone warms up |
 | Poco F4 (Snapdragon 870) | Runs. MIUI can drop the game to 30 fps while you play with a controller and don't touch the screen |
-| Retroid Pocket Classic (Snapdragon G1 Gen 2) | Not supported. Its GPU has no Vulkan 1.3 driver, so the game draws on the CPU and is far too slow |
-| Retroid Pocket 6, AYN Odin 2 | Expected to work, not tested. The bundled graphics driver knows their GPU |
+| Retroid Pocket Classic (Snapdragon G1 Gen 2) | Runs on the bundled Turnip driver (Adreno 613, Vulkan 1.3) |
+| Retroid Pocket 6, AYN Odin 2 | Expected to work, not tested. The bundled graphics driver supports their GPU |
 | AYN Odin 3 | Uncertain, not tested. Its GPU is new to the bundled driver and it ships Android 15, which may restrict how the driver is loaded |
 | Steam Deck LCD, other Linux distributions | Not tested |
 | Windows 11 laptop, Intel Core Ultra 5 228V (integrated graphics) | Runs. 40 to 60 fps even at render scale 1 |
@@ -221,14 +222,13 @@ report zip from Advanced > Create bug report helps a lot.
 
 ### System requirements
 
-- Everyone: a copy of your own disc (see [Quick start](#quick-start)), about
-  3 GB of free space, which the setup checks, and a game controller or a
+- All platforms: a copy of your own disc (see [Quick start](#quick-start)),
+  about 3 GB of free space (the setup checks), and a game controller or a
   keyboard. Android needs a controller. The game data takes 2.5 GB.
-- Mac: Apple silicon and macOS 13 or newer. It has only been run on macOS
-  26.
+- Mac: Apple silicon and macOS 13 or newer. Only tested on macOS 26.
 - Windows: 64-bit Windows 10 or newer and a graphics driver with Vulkan 1.3.
-  With AMD graphics, use Adrenalin 26.8.1 or newer. Older AMD drivers have a
-  memory leak of their own that adds up over a long session.
+  With AMD graphics, use Adrenalin 26.8.1 or newer. Older AMD drivers leak
+  memory, which adds up over a long session.
 - Linux and Steam Deck: x86-64, glibc 2.29 or newer and a graphics driver
   with Vulkan 1.3. The AppImage needs no FUSE library.
 - Android: Android 13 or newer, 64-bit, a Snapdragon chip with Adreno
@@ -251,31 +251,29 @@ report zip from Advanced > Create bug report helps a lot.
    every one of the 716 files against a list of known sizes and SHA-256 sums.
    This took 3 to 10 seconds on the tested computers and the Steam Deck.
    Afterwards you can delete the disc image.
-4. Press Play. The setup window's "Prepare graphics" box, ticked by default,
-   runs the optional [shader pre-build](#the-shader-pre-build) first. The
-   settings open with Back and Start together on a controller, or F1 on a
-   keyboard.
+4. Press Play. If the "Prepare graphics" box is ticked (the default), the
+   [shader pre-build](#the-shader-pre-build) runs first. In the game, open the
+   settings with Back and Start together on a controller, or F1 on a keyboard.
 
-Your saves and settings are kept apart from the program and from the game
-data, so they stay when you update.
+Saves and settings are stored apart from the program and the game data, so an
+update leaves them alone.
 
 ### How to update
 
-Updates are manual. On a desktop, Settings > Advanced > Check for updates
-says whether a newer version is out, and the Advanced page shows the version
-you have. You download the new version yourself from the
-[releases page][releases].
+Updates are manual. On desktop, Settings > Advanced > Check for updates
+tells you whether a newer version is out, and the Advanced page shows which
+version you have. Download the new one from the [releases page][releases].
 
 - Mac: quit Takedawn, drag the new one into Applications and choose Replace,
   then allow it once more with Open Anyway.
-- Windows: run the new setup program. It updates in place and keeps the
-  previous version.
+- Windows: run the new setup program. It updates in place and keeps one copy
+  of the previous version.
 - Linux and Steam Deck: replace the old AppImage file with the new one under
   the same file name, so the Steam shortcut keeps working.
 - Android: install the new APK over the old one. Do not uninstall first.
 
-Your saves, settings and the installed game data are kept everywhere, and no
-disc image is needed for an update.
+On every platform an update keeps your saves, settings and installed game
+data, and you don't need the disc image again.
 
 ## Setup by platform
 
@@ -300,7 +298,7 @@ The game data goes to `~/Library/Application Support/Takedawn/Game`. For a
 disc image in Desktop, Documents or Downloads, macOS asks once whether
 Takedawn may read that folder.
 
-To open the settings: F1 or Cmd and comma, or Back and Start on a controller.
+To open the settings: F1 or Cmd+comma, or Back and Start on a controller.
 
 To remove it: delete the app, `~/Library/Application Support/Takedawn` (this
 deletes your saves too) and `~/Library/Caches/Takedawn`.
@@ -320,8 +318,8 @@ deletes your saves too) and `~/Library/Caches/Takedawn`.
 There is no portable zip. The game data goes to `%LOCALAPPDATA%\Takedawn\Game`
 and your saves to `%APPDATA%\Takedawn`.
 
-If the display is in a 24 Hz or 30 Hz mode the game cannot show 60 frames per
-second. Use a mode of 60 Hz or more.
+In a 24 Hz or 30 Hz display mode the game can't show 60 fps. Use 60 Hz or
+more.
 
 To remove it: uninstall Takedawn in Settings > Apps. The uninstaller leaves
 the game data and your saves and says where they are. Delete
@@ -349,7 +347,7 @@ the game data and your saves and says where they are. Delete
 
 The game data goes to `~/.local/share/takedawn/Game`, or to
 `$XDG_DATA_HOME/takedawn/Game` if that variable is set. Nothing is installed
-system-wide. The AppImage carries its own SDL and Qt and needs glibc 2.29 or
+system-wide. The AppImage bundles its own SDL and Qt and needs glibc 2.29 or
 newer, the Vulkan loader and the usual desktop libraries from your system. It
 was built in the Steam Runtime SDK. If it doesn't run on your distribution,
 please report it.
@@ -374,15 +372,15 @@ menu > Performance).
    program. The setup window's "Add Takedawn to my Steam library" box does
    the same: it asks first, closes Steam for a moment and starts it again.
 3. Return to Game Mode and start Takedawn. The setup window fills the screen.
-   The D-pad or left stick moves the blue mark, A selects, B goes back, the
-   shoulder buttons scroll, and Start is the main button (Install, then Play).
-   The foot of the window says what the buttons do.
+   The D-pad or left stick moves the blue highlight, A selects, B goes back,
+   the shoulder buttons scroll, and Start is the main button (Install, then
+   Play). The bottom of the window shows what the buttons do.
 4. If the window found your disc, choose "Use it". Otherwise open "Choose
    disc..." and pick it from the window's own list of folders and drives.
 5. Press Start to install (about 2 minutes, most of it preparing the graphics),
    and Start again to play.
 
-On a Deck a first start uses full screen, the game's 16:9 mode with the
+On a Deck, the first start uses full screen, the game's 16:9 mode with the
 widescreen HUD fix, render scale 2 and SMAA. You can change all of it in the
 settings. To open them, hold View (the button with two squares) and press
 Menu (three lines).
@@ -391,18 +389,18 @@ Tips for the Deck are under [Tips for smooth play](#tips-for-smooth-play).
 
 ### Android (experimental)
 
-The Android APK is not on the releases page yet. It comes once a graphics bug found in the last tests is fixed.
+The Android APK is not on the releases page yet. It will be once a graphics bug from the last round of tests is fixed.
 
-The Android build is tested on a Retroid Pocket 5. The [Devices](#devices) list shows the phones it has also run on.
+I test the Android build on a Retroid Pocket 5. The [Devices](#devices) list has the phones it has also run on.
 
 1. Download the APK on the device and open it. Android asks whether the app
    you opened it with (the browser or the file manager) may install unknown
-   apps. Allow it for this once, install, and switch the permission off again
-   if you like. Google Play Protect may also ask whether to install an app it
+   apps. Allow it, install, and switch the permission off again if you
+   like. Google Play Protect may also ask whether to install an app it
    does not know.
 2. Copy your disc image to the device, or have it on an SD card.
 3. Start Takedawn. The first start asks for the disc image. Pick it with the
-   system's file picker. The app asks for no storage permission. It checks the
+   system's file picker. The app doesn't ask for storage permission. It checks the
    image and copies the data into its own folder, hashing every file. If the
    copy is interrupted, pick the same image again and it continues.
 4. Play with the built-in controls or a connected controller. The game has no
@@ -410,25 +408,31 @@ The Android build is tested on a Retroid Pocket 5. The [Devices](#devices) list 
    is Select and Start on a Retroid Pocket.
 
 The game needs Vulkan 1.3. Most Snapdragon devices ship a driver that offers
-less, so the APK carries Mesa's open-source Turnip driver
-and loads it inside the app. Nothing outside the app is changed and no root
-access is needed. You can choose the driver in three places: the second entry
+less, so the APK bundles Mesa's open-source Turnip driver
+and loads it inside the app. It changes nothing outside the app and needs no
+root. You can choose the driver in three places: the second entry
 in the launcher, "Takedawn: graphics driver"; a button on the setup page; and
 the Graphics page of the settings while the game runs. The choices are:
 
-- Automatic (the default): the bundled Turnip on every Adreno device, because
-  that is the driver the game is tested with;
+- Automatic (the default, and the one to use): the bundled Turnip on every
+  Adreno device, because that is the driver the game is tested with. On other
+  GPUs it is the device's own driver;
 - the bundled Turnip driver;
 - the device's own driver;
-- a driver package you pick, the kind of `.zip` that emulators use.
+- a driver file you pick (Adreno only).
 
-A driver is loaded before the game starts, so a change holds from the next
-start. The settings page offers "Restart now to use it". A driver you picked
-is on trial at its first start. If it fails, the next start goes back to the
-bundled driver and says so.
+A driver file is a Turnip build for Adreno GPUs, packed as a `.zip` with a
+`meta.json` in it. Android emulators load drivers in this format, and their
+users share builds for many devices. You only need one if the bundled driver
+can't run the game on your device.
 
-Updating needs the new APK to be signed with the same key as the old one,
-which is the case for every release from this project. To remove the app,
+The driver is loaded before the game starts, so a change takes effect at the
+next start. The settings page has a "Restart now to use it" button. If the
+game doesn't reach its first frames with a driver you picked, or that driver
+stops working later, the next start switches back to Automatic and tells you.
+
+An update only installs if the new APK is signed with the same key as the old
+one. Every release from this project is. To remove the app,
 uninstall it. Android offers to keep its data, which holds your saves.
 
 ## Controls
@@ -454,8 +458,8 @@ The settings open with TAKEDAWN SETTINGS in the game's Settings and pause
 menus, with Back and Start together on a controller (View and Menu on a Steam
 Deck, Select and Start on a Retroid Pocket), or with F1 on a keyboard.
 
-Input > Button prompts picks the prompt pictures (Auto follows the controller
-in use). With the PS2 layout, the prompts still show the game's own buttons
+Input > Button prompts sets which button icons are shown (Auto follows the
+controller in use). With the PS2 layout, the prompts still show the game's own buttons
 (in Crash mode the Crashbreaker prompt says B, while R2 fires it). The PS2 layout and
 the Nintendo face-button layout are described in
 [docs/controls.md](docs/controls.md).
@@ -469,7 +473,7 @@ with Y or Delete, and close with B or Esc.
 Changes are saved to `settings.toml` in the save folder. Rows marked (restart)
 take effect at the next start. Each page can be reset to its defaults.
 
-On first start the packages use settings that suit today's screens:
+The first start uses defaults that suit modern screens:
 
 | | First-start settings |
 |---|---|
@@ -477,8 +481,8 @@ On first start the packages use settings that suit today's screens:
 | Steam Deck, and any machine in a gamescope session | The same, with render scale 2 |
 | Android | Full screen, 16:9 with the widescreen HUD fix, render scale 1.5, FXAA, sharpening 30%, Menu and HUD upscaling 2x |
 
-Your own choices are kept once you make them, and 4:3, a window and 1x are
-all still in the menu. Everything else that changes the console's look
+Once you change a setting, your choice sticks. 4:3, windowed mode and 1x are
+still in the menu. Everything else that changes the console's look
 (ultrawide, km/h and the rest) is off until you switch it on.
 
 <details>
@@ -491,11 +495,11 @@ all still in the menu. Everything else that changes the console's look
 | Fullscreen | On, Off | On |
 | Aspect ratio (restart) | 4:3, 16:9 | 16:9, the game's own widescreen mode |
 | Filter | Nearest, Linear, Integer | Linear. How the picture is scaled to the window |
-| Overscan | Show all, Crop | Crop: the border a television hid is cut off |
+| Overscan | Show all, Crop | Crop: cuts off the border a TV would hide |
 | Present fit | Letterbox, Fill 16:10 | Letterbox. Fill 16:10 fills a Steam Deck's screen and crops the sides a little |
-| Speed units | mph, km/h | mph, as on the disc. km/h also changes distances to metres. Shows from the next race |
-| Widescreen HUD | On, Off | On. With 16:9, keeps the HUD in its 4:3 shape at the edges of the picture. Shows from the next race |
-| Ultrawide | Off, 21:9, 32:9, Window | Off. Needs Aspect ratio 16:9. Shows from the next race |
+| Speed units | mph, km/h | mph, as on the disc. km/h also changes distances to metres. Applies from the next race |
+| Widescreen HUD | On, Off | On. With 16:9, keeps the HUD in its 4:3 shape at the edges of the picture. Applies from the next race |
+| Ultrawide | Off, 21:9, 32:9, Window | Off. Needs Aspect ratio 16:9. Applies from the next race |
 
 **Graphics**
 
@@ -541,7 +545,7 @@ of the picture.
 | Face buttons | Xbox layout, Nintendo layout | Xbox layout |
 | Driving controls | Xbox layout, PS2 layout | Xbox layout. See [Controls](#controls) |
 | Button prompts | Auto, Xbox (original), Xbox (modern), PlayStation, PlayStation 5, Nintendo, Steam, Positional, Keyboard | Auto |
-| Vibration (Android only) | Auto, Controller, This device, Off | Auto: the device shakes when you play on its built-in pad |
+| Vibration (Android only) | Auto, Controller, This device, Off | Auto: the device vibrates when you play on its built-in pad |
 
 **Power**
 
@@ -549,11 +553,11 @@ of the picture.
 |---|---|---|
 | Power mode | Balanced, Battery saver; on a Mac also Maximum | Balanced. Battery saver uses less power and can show an occasional small dip |
 
-Maximum busy-waits all the time. It measured no steadier than Balanced on the
-Steam Deck and the Mac and worse on Windows, and it uses more power, so it is
-not in the menu on Windows, Linux and Android. On the Mac, Balanced held the
-same frame times at about half of Maximum's processor use, and added no input
-delay in a measurement of button press to finished frame.
+Maximum busy-waits all the time. In measurements it was no steadier than
+Balanced on the Steam Deck and the Mac and worse on Windows. It also uses more
+power, so it's not in the menu on Windows, Linux and Android. On the Mac,
+Balanced held the same frame times at about half of Maximum's CPU use and
+added no input latency (measured from button press to finished frame).
 
 **Advanced**
 
@@ -576,10 +580,10 @@ shows such a row as locked. The variables are in
 
 ### The shader pre-build
 
-The game compiles a graphics shader the first time something needs it, which
-shows as short hitches in the garage, at the first race start and at the first
-crash. To avoid that, the game can play two scenes by itself once, without a
-window or sound, and compile what they need.
+The game compiles each shader the first time it's needed, which causes short
+hitches in the garage, at the first race start and at the first crash. To
+avoid that, the game can play two scenes by itself once, with no window or
+sound, and compile the shaders they use.
 
 - It is optional. The setup window's "Prepare graphics for smooth first
   races" box is ticked by default; untick it to skip. You can start it later
@@ -587,25 +591,24 @@ window or sound, and compile what they need.
 - It takes about a minute on the tested Mac and about two minutes on a
   Steam Deck (116 seconds) and on the tested Windows PC (107 seconds).
 - It uses a few MB of disk.
-- Without it the game still runs, and each shader is compiled once, at first
-  use, and remembered.
+- Without it the game still runs. Each shader compiles once, at first use,
+  and is cached.
 - It is not available on Android, where shaders compile on first use and are
   remembered between starts.
 
-What it removes, measured on a Steam Deck in a new profile's first race: the
-longest frame at car select fell from 365 ms to 47 ms, and the race had no
+Measured on a Steam Deck in a new profile's first race: the longest frame at
+car select dropped from 365 ms to 47 ms, and the race had no
 shader compiles at all. A few shaders can still compile later, for tracks and
 modes the two scenes do not visit. Details are in
 [docs/shader-prebuild.md](docs/shader-prebuild.md).
 
-The result is made on your machine from your game data and stays there. No
-shader cache or shader list is shipped with Takedawn.
+The cache is built on your machine from your game data and stays there.
+Takedawn ships no shader cache or shader list.
 
 ## Performance
 
-The game's own target is 60 frames per second, with 30 in some crash cameras
-and replays. A frame at 60 lasts 16.7 ms. The numbers below are frame times in
-a race. "p99" is the 99th percentile: 99 of 100 frames were at least that fast.
+The game targets 60 fps, with 30 in some crash cameras and replays. At 60 fps
+a frame lasts 16.7 ms. The numbers below are frame times in a race. "p99" is the 99th percentile: 99 of 100 frames were at least that fast.
 
 | Device | Settings | Result |
 |---|---|---|
@@ -624,11 +627,11 @@ The watt figures are the Deck's own power reading over two runs each. The
 Retroid Pocket 5 rows are from a build before the current Turnip setting
 (`TU_DEBUG=nobin,noubwc`), which adds a few slow frames.
 
-What has not been measured:
+Not measured yet:
 
-- Ultrawide. It was looked at by eye on the Mac at 21:9 and 32:9 in a window.
-  No frame times exist from a quiet machine and none from a real ultrawide
-  display.
+- Ultrawide. It was only checked by eye on the Mac, at 21:9 and 32:9 in a
+  window. There are no frame times from an idle machine and none from a real
+  ultrawide display.
 - Render scales above 2 on the Retroid Pocket 5.
 - The frame-time cost of bloom and motion blur outside Android, and of the
   vehicle detail distance anywhere. Bloom and blur are 5 of a race frame's 22
@@ -638,8 +641,8 @@ What has not been measured:
 
 ## Tips for smooth play
 
-- Run the display at 60 Hz or a multiple of it. On a 120 Hz display the game
-  shows every second refresh.
+- Run the display at 60 Hz or a multiple of it. On a 120 Hz display each game
+  frame stays up for two refreshes.
 - Steam Deck OLED: set the screen to 60 Hz for this game (Quick Access menu >
   Performance) and leave Steam's frame limiter off. At 90 Hz it can judder.
 - Steam Deck: Present fit > Fill 16:10 fills the screen. Letterbox keeps the
@@ -649,7 +652,7 @@ What has not been measured:
   Retroid Pocket 5, 1.5x is the default for that reason.
 - For a 21:9 display use render scale 4. The game's frame is 640 columns
   wide, so a wide picture needs the higher scale to stay sharp.
-- To see what is happening: Advanced > Performance overlay.
+- Advanced > Performance overlay shows the frame rate and frame times.
 
 ## FAQ and troubleshooting
 
@@ -662,9 +665,9 @@ game data. Cars, tracks, sound, music and films come from your own disc.
 
 The North America (NTSC-U) retail disc for the original Xbox. The setup
 recognises it by the SHA-256 of its `default.xbe`:
-`9f497acd82adb8edfb72cc31aeeb35010b45d32b13a3f1fc6540717ff24d13f9`. PAL and
-Japanese discs and patched files are refused, because the program was made
-from that one executable.
+`9f497acd82adb8edfb72cc31aeeb35010b45d32b13a3f1fc6540717ff24d13f9`. It refuses
+PAL and Japanese discs and patched files, because the program was built from
+that one executable.
 
 **Is this an emulator?**
 
@@ -681,7 +684,7 @@ in the game's track data and cannot be raised by a setting.
 **Can I use my own music?**
 
 Yes. Choose a folder in Audio > Custom music folder, then pick it in the
-game's EA GAMES TRAX screen. mp3, flac, ogg and wav files play. On Android the
+game's EA GAMES TRAX screen. It plays MP3, FLAC, Ogg and WAV files. On Android the
 game asks for access to music files the first time you open the row; if you
 said no, allow it in Settings > Apps > Takedawn > Permissions > Music and
 audio.
@@ -692,13 +695,13 @@ No. The game steps its simulation once per frame, so 60 is its own speed.
 
 **Can I bring my saves from an Xbox?**
 
-That has not been tried. Saves made with Takedawn move between its platforms:
+I haven't tried that. Saves made with Takedawn move between its platforms:
 quit the game on both machines and copy the `UDATA` folder from one save
 folder to the other.
 
 **The setup refuses my disc image. Why?**
 
-It names the reason:
+It tells you why:
 
 - Wrong game or wrong version: not the North America retail disc.
 - A disc for another console.
@@ -732,9 +735,9 @@ if you are offered the choice.
 **Android: the start page says no usable graphics driver, or the game is very slow.**
 
 The game needs Vulkan 1.3. Open the graphics driver page from the launcher and
-choose the bundled Turnip driver, or Automatic. On a device without Adreno
-graphics there is no driver that works, and the game can only draw on the
-processor, which is far too slow to play.
+choose Automatic. On a device without Adreno graphics the game uses the
+device's own driver. If that driver has no Vulkan 1.3, the game can only draw
+on the processor, which is far too slow to play.
 
 **The game hitches in the first races.**
 
@@ -743,9 +746,9 @@ hitch happens once.
 
 **There is no rumble on my controller on Android.**
 
-Android's controller support in the library Takedawn uses cannot rumble
-external pads. The device's own vibrator is used when you play on the built-in
-controls.
+On Android, the library Takedawn uses for controllers can't rumble external
+pads. When you play on the built-in controls, the device's own vibration motor
+is used.
 
 **Where are my saves, settings and logs?**
 
@@ -762,7 +765,7 @@ your saves.
 
 **Can I put the game data somewhere else?**
 
-Yes, from a terminal. The setup window has no place to choose. Install with
+Yes, from a terminal. The setup window has no option for it. Install with
 `--install <image> --dest <folder>` (see
 [the command-line installer](#the-command-line-installer)) and start the
 program with `--data <folder>`, or set the environment variable
@@ -771,7 +774,7 @@ program with `--data <folder>`, or set the environment variable
 ### Reporting a bug
 
 1. Open the settings, go to Advanced and switch on Diagnostic logging. Restart
-   the game so the log has its start, then make the problem happen again.
+   the game so the log covers the start, then make the problem happen again.
 2. In Advanced, choose Create bug report, or Create bug report with a
    screenshot to add the picture behind the menu. If the game does not start,
    run the program with `--bug-report` from a terminal. On Android the start
@@ -825,7 +828,7 @@ The runtime reads that buffer, translates the chip's vertex programs and
 register combiners into shaders, and draws with Metal on a Mac and with Vulkan
 on Windows, Linux and Android.
 
-No game logic and no screen is rewritten by hand. The optional features that
+No game logic or screen is rewritten by hand. The optional features that
 change the game (km/h, the widescreen HUD, ultrawide, the bloom and motion
 blur switches, vehicle detail distance) change values in the game's own code
 at places listed in [`config/patches.json`](config/patches.json), and do
