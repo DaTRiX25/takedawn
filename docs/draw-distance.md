@@ -75,7 +75,7 @@ So the cost is geometry: up to a fifth more indices in a frame with all
 rivals in view, 1 to 5 % more draw calls. Frame time was not measured: the
 runs were headless on a machine other agents were loading, and at these
 counts the Mac shows nothing. On the Deck and the RP5 the vertex work is
-the part to check on the RP5 before Android gets a default other than `original`
+the part to check. Check it on the RP5 before Android gets a default other than `original`
 (the Deck's `far` default is the owner's choice after several races there).
 
 Pictures: `runs/draw2/paused.png` (three pauses and the crash, rows

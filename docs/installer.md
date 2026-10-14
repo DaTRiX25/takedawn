@@ -14,8 +14,9 @@ an already extracted folder), recompiles and builds there, and produces an app
 whose icon is taken from the player's own `default.xbe`. Nothing it makes is
 meant to leave that machine.
 
-This slice is the core and macOS packaging. There is no GUI yet; the driver
-speaks a line protocol a GUI can sit on (below). Everything is under
+This slice is the core and macOS packaging of the source installer. The driver
+speaks a line protocol a GUI can sit on (below); the setup window described
+later in this page talks to the game's executable, not to this driver. Everything is under
 `tools/install/`.
 
 ```
@@ -449,8 +450,8 @@ given (`--podman-root`, or podman's own).
   executable, because Metal's compiled cache belongs to the bundle id; Linux: `burnout3.sh`;
   Windows: `burnout3.exe` with `<root>\Game` as the working directory), with `--cache-dir` when
   `--shader-cache <dir>` is given (tests give a folder of their own; otherwise the game's own cache).
-  Its PROGRESS and LOG lines are forwarded under the step. It is never forced and it **never fails
-  the install**: the game works without it. Any failure (`cache-off`, `no-game-data`, `scene-failed`,
+  Its PROGRESS and LOG lines are forwarded under the step. It is never forced and it never fails
+  the install: the game works without it. Any failure (`cache-off`, `no-game-data`, `scene-failed`,
   `cancelled`, or the game ending with an error or without a word: `game-failed`, `no-result`,
   `game-not-started`) is reported as `STEP shaders FAIL <code> <text>` plus a `WARN` line and the run goes
   on to `RESULT OK`; the step can be run again (`--only shaders`: the game skips the scenes it has
@@ -658,7 +659,7 @@ wrapper). The toolkit's `tools/xiso` (MIT) does the same job as `xdvdfs.py`.
 
 ## Not done in this slice
 
-- No GUI, no source or toolkit fetching, no `brew` installation (it reports; `pip install capstone` it does itself).
+- No GUI in this slice (the setup window came later), no source or toolkit fetching, no `brew` installation (it reports; `pip install capstone` it does itself).
 - No uninstaller (delete the app and the root folder) in this source installer.
   (The packages that replaced it update by a new download put over the old
   one: see "Updating" in [release.md](release.md). This slice's own rule, that a

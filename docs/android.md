@@ -6,9 +6,9 @@ through its own entry point, draws through the Vulkan backend on Mesa's Turnip
 driver (the RP5's stock driver is Vulkan 1.1 and cannot run it), full screen,
 with sound, the built-in pad, the settings overlay and the user's save from
 another machine. A scripted race on Silver Lake holds 60 at the title's own
-640x480 and does not hold it at 2x ("Measured" below). Not yet done: touch
-controls, the vblank lock to the display, the shader pre-build, a render
-scale between 1 and 2.
+640x480 and does not hold it at 2x ("Measured" below). Not done then: touch
+controls and the shader pre-build. The vblank lock to the display (the
+Choreographer) and render scale 1.5 came later; see "Defaults on Android now".
 
 The Android build reuses the two halves that exist: the arm64 code path of the
 macOS build (the A64 MMIO decoder, the recompiled C as it is) and the Linux
@@ -62,19 +62,20 @@ Release APKs are signed again with the project's own key by
 
 | in the APK | size | from | licence |
 |---|---|---|---|
-| `lib/arm64-v8a/libmain.so` | 25.3 MB stripped (120 MB with symbols) | the game: the recompiled C of **your** `default.xbe`, the toolkit runtime, and linked in: glslang 16.6.0, Dear ImGui 1.92.9b, libadrenotools | the toolkit's; glslang BSD-3-Clause / Apache-2.0 / MIT (Khronos); Dear ImGui MIT; libadrenotools and its linkernsbypass BSD-2-Clause (Copyright 2021 Billy Laws) |
+| `lib/arm64-v8a/libmain.so` | 25.3 MB stripped (120 MB with symbols) | the game: the recompiled C of the disc's `default.xbe`, the toolkit runtime, and linked in: glslang 16.6.0, Dear ImGui 1.92.9b, libadrenotools | the toolkit's; glslang BSD-3-Clause / Apache-2.0 / MIT (Khronos); Dear ImGui MIT; libadrenotools and its linkernsbypass BSD-2-Clause (Copyright 2021 Billy Laws) |
 | `libSDL2.so` | 1.2 MB | SDL 2.32.10, https://github.com/libsdl-org/SDL | zlib |
 | `libc++_shared.so` | 1.4 MB | the NDK | Apache-2.0 with LLVM exception |
-| `libvulkan_freedreno.so` | 14.1 MB | Mesa 26.2.4 Turnip, built by `fetch-deps.sh` from https://archive.mesa3d.org/mesa-26.2.4.tar.xz (sha256 `bce5f7fb...832e9`, as in Mesa's release notes), with `tools/android/patches/mesa-26.2.4-kgsl-zero-timeout.patch` (two commits of Mesa's main branch, see "The dips in traffic") | MIT (Mesa's `docs/license.rst`) |
+| `libvulkan_freedreno.so` | 18.9 MB | Mesa 26.2.0-devel Turnip `git-7fdde2f8f8`, whitebelyash's experimental build (his gen8 work, https://github.com/whitebelyash/mesa-tu8; render-pass dependency `CCU_CLEAN_COLOR \| WAIT_FOR_ME`), prebuilt: `assets/bundled_driver/vulkan.wb26_2_rp_pair_ccu_color_a725.so` of https://github.com/SansNope/UnleashedRecomp-Android/releases/download/v0.6.1/UnleashedRecomp_0.6.1.apk (APK sha256 `05717f16...74c34`, driver sha256 `87f371a2...b22b0`, as UnleashedRecomp-Android's `driver/README.md` gives it), where it is the "A725 Performance" driver; taken out and checked by `fetch-deps.sh`, packed unstripped. Runs with `TU_DEBUG=sysmem,nobin`. See "The A725 Turnip build (BO-152)". `BO3_ANDROID_TURNIP=mesa` packs the Mesa 26.2.4 build of `fetch-deps.sh` instead (https://archive.mesa3d.org/mesa-26.2.4.tar.xz, sha256 `bce5f7fb...832e9`, with `tools/android/patches/mesa-26.2.4-kgsl-zero-timeout.patch`) | MIT (Mesa's `docs/license.rst`) |
 | `libhook_impl.so`, `libmain_hook.so`, `libfile_redirect_hook.so`, `libgsl_alloc_hook.so` | 51 KB | libadrenotools, https://github.com/bylaws/libadrenotools at commit `8fae8ce` (2024-09-10) | BSD-2-Clause |
 | `classes.dex` | 94 KB | SDL's activity (`org.libsdl.app`), `StartActivity`, `GameActivity`, `GpuDriver` | zlib; this repository's |
 | `assets/licenses/` | about 60 KB | the release's licence set (`tools/release/common.sh`, `copy_licenses`) and `tools/android/licenses/` (libadrenotools, linkernsbypass, Mesa); shown by the app's **Licences** page (`LicensesActivity`) | |
 | manifest, resources | | `android/` | |
 
-Not in the APK: the game data, saves, settings. `libmain.so` is code generated
-from the user's disc, so the APK is, like `bin/burnout3` on the other
-platforms, something the user builds from their own disc on their own machine
-and does not pass on. The repository holds no generated C and no APK.
+Not in the APK: the game data, saves, settings. `libmain.so` holds the game's
+compiled code, generated from `default.xbe`; the release APK is built from the
+stamped generated tree ([release.md](release.md)) and the player's own disc
+supplies the data ("The Takedawn package"). The repository holds no generated C
+and no APK.
 
 ## The Takedawn package (0.1.0, BO-103)
 
@@ -205,14 +206,14 @@ Read from the RP5 with `adb shell cmd gpu vkjson`, and the same as the public
 report https://vulkan.gpuinfo.org/displayreport.php?id=36612 ("Moorechip
 Retroid Pocket 5"):
 
-- device `Adreno (TM) 650`, driver 512.746.0, **Vulkan 1.1.128** (the system
+- device `Adreno (TM) 650`, driver 512.746.0, Vulkan 1.1.128 (the system
   loader itself reports 1.3.0);
 - of what the backend requires (`src/d3d/nv2a_vk_core.c`: API 1.3, dynamic
   rendering, synchronization2, timeline semaphores; it also draws with the
   1.3 dynamic states and host query reset): offered as extensions are
   `VK_KHR_synchronization2`, `VK_KHR_timeline_semaphore`,
   `VK_EXT_extended_dynamic_state`, `VK_EXT_host_query_reset`,
-  `VK_KHR_create_renderpass2`; **not offered** are `VK_KHR_dynamic_rendering`
+  `VK_KHR_create_renderpass2`; not offered are `VK_KHR_dynamic_rendering`
   and `VK_EXT_extended_dynamic_state2` (depth bias enable), and
   `VK_KHR_present_id` / `VK_KHR_present_wait`;
 - features: anisotropy 16x, precise occlusion queries, BC textures;
@@ -228,18 +229,20 @@ reporting 1.3). So on this device the log says
     [vulkan] RECOMP_PB_BACKEND=vulkan: no device, staying on the CPU rasteriser
     [PRESENT] window up: SDL opengles2 renderer, vsync on; guest runs on a pthread
 
-Decided (user, 2026-10-11): **Mesa Turnip through libadrenotools**, the way
-Xerenge and the Android emulators do it; not a Vulkan 1.1 downport of the
-backend (render passes in place of dynamic rendering in shared code).
+Decided (user, 2026-10-11): Mesa Turnip through libadrenotools, the way
+Xerenge and the Android emulators do it. A Vulkan 1.1 downport of the
+backend (render passes in place of dynamic rendering in shared code) was
+rejected.
 
-**The driver.** Mesa 26.2.4, the current stable release, built from Mesa's own
+**The driver (first version).** Mesa 26.2.4, built from Mesa's own
 tarball by `tools/android/fetch-deps.sh` the way
 https://docs.mesa3d.org/android.html describes (`-Dplatforms=android
 -Dvulkan-drivers=freedreno -Dfreedreno-kmds=kgsl -Degl=disabled
 -Dgallium-drivers=`; KGSL is the interface of Qualcomm's Android kernels, the
 RP5's 4.19 included). The tarball is pinned by the sha256 of Mesa's release
-notes; no prebuilt community package is used. What that source says about the
-Adreno 650 against what the backend asks for:
+notes; no prebuilt package was used. The APK bundles the A725 build below
+instead; this build is what `BO3_ANDROID_TURNIP=mesa` packs. What this source
+says about the Adreno 650 against what the backend asks for:
 
 | the backend needs (`nv2a_vk_core.c`) | stock 512.746.0 (from the device) | Turnip 26.2.4 (from its source) |
 |---|---|---|
@@ -269,6 +272,25 @@ themselves are not changed, and `libmain.so` has no `libvulkan.so` dependency
 left). SDL makes the window's surface with the same loader, because the
 exported `vkGetInstanceProcAddr` it finds is the game's.
 
+**The A725 Turnip build (BO-152).** The Mesa 26.2.4 Turnip built from Mesa's
+release hung the Retroid Pocket 5's Adreno 650 every 2 to 14 minutes in races
+on 2026-10-13 (kgsl "GPU hang detected", RBBM_STATUS 0x00E59005, sometimes
+ending in VK_ERROR_DEVICE_LOST), whatever the game's settings and whichever
+fixed-function paths were switched off. UnleashedRecomp-Android, another
+recompiled game, saw the same freeze on the RP5 (its issues #140 and #170);
+its "A725 Performance" driver stopped it there. That build, with the
+`TU_DEBUG=sysmem,nobin` that app sets for it, ran on the RP5 with no hang.
+It is the Turnip in the APK since: `fetch-deps.sh` downloads that app's
+v0.6.1 release APK (pinned by sha256), takes the driver out and checks it
+against the sha256 in that app's `driver/README.md`; nothing of that app
+itself is used. The binary calls itself Mesa 26.2.0-devel `git-7fdde2f8f8`;
+that commit is not in whitebelyash's public repository (checked 2026-10-13),
+so the source is his gen8 branch as published there. Mesa is MIT; the APK
+carries Mesa's licence texts and `Mesa-Turnip-SOURCE.txt` saying all this.
+On an Adreno 6xx with a driver of the player's choosing, the runtime still
+defaults to `TU_DEBUG=nobin,noubwc`; with the driver in the app,
+`sysmem,nobin` on every Adreno. A `TU_DEBUG` in `env.txt`, even empty, wins.
+
 **Which driver a start uses** (`GpuDriver.java`; the choice is in logcat as
 `GPU driver: ...`, and the runtime logs `[vulkan] replacement driver ...`):
 
@@ -295,24 +317,39 @@ driver package" deletes it. The page shows what the last start ran on (the
 device name, its Vulkan version, Mesa's version for a Turnip), and the
 overlay's Graphics page shows the same for the running game. From adb:
 `am start -n io.github.xenophobentx.takedawn/.DriverActivity --es import
-<a file under the app's files folder>` or `--es choose auto|bundled|system|custom|remove`.
+<a file under the app's files folder>` or `--es choose auto|bundled|system|custom|remove`,
+in a debuggable build only (the page is exported, so any app could send
+these; a release build ignores them and says so in the log).
+
+Turnip drives Adreno GPUs only. On any other GPU (Mali, Xclipse) the bundled
+driver, a package and the driver folder are never loaded, the driver page
+offers neither, and Automatic is the device's own driver.
 
 A driver other than the one in the app is on trial at each start it has not
 passed: the activity leaves a note that the game removes after 120 frames
 presented through Vulkan. A package the loader cannot open is replaced by
 the bundled driver in the same start, with a message on the screen. A driver
 that opens and then crashes, or lacks what the backend needs (the game then
-falls to its CPU rasteriser), leaves the note in place: the next start uses
-the bundled driver, says so (a toast, and on the driver page), and the choice
-stays "in the app" until the player chooses again. So a bad driver costs one
-start, never a loop; a game ended by the player in its first two seconds
-counts as a failed trial too. The backend's fence-per-frame scheme
+falls to its CPU rasteriser), leaves the note in place: the next start goes
+back to Automatic (the bundled driver on an Adreno; the bundled driver itself
+when a file in the driver folder would come first under Automatic), says so
+(a short toast, the whole note on the driver page), and the choice stays
+there until the player chooses again. A driver the player picked that passes
+its trial and loses the device later (VK_ERROR_DEVICE_LOST) is dropped the
+same way: the box after the lost device says the next start is on Automatic
+(BO-163). So a bad driver costs one start, never a loop; a game ended by the
+player in its first two seconds counts as a failed trial too. The backend's fence-per-frame scheme
 (`vk_poll=0`) is the default on Android whatever the driver.
 
 **When no driver will do**, the start page says so (the device's Vulkan
 version, where a driver goes) and starts on the CPU rasteriser only when
-asked; if a chosen driver then fails in the game, a message box names the
-reason before the CPU rasteriser takes over.
+asked; if a chosen driver then fails in the game, a message box says so in a
+player's words (the reason is in the log) before the CPU rasteriser takes
+over. Its buttons: "Use built-in" (back to Automatic and a restart; on an
+Adreno when the start was not on the bundled driver), "Driver file..." (the
+driver page on the file picker; Adreno only) and "Continue". When the bundled
+driver is the one that failed, the box says what a driver file is and where
+players get one.
 
 ## What was checked on the device (2026-10-11)
 
@@ -544,8 +581,8 @@ Xbox layout. Options, not defaults: `RECOMP_PRESENT_VSYNC=1` (FIFO),
 ### Rumble
 
 The game's rumble plays on the device's own vibrator, because the built-in
-pad of a handheld has no motors. **An external pad does not rumble on
-Android**: SDL 2.32.10's Android joystick driver has no rumble at all
+pad of a handheld has no motors. An external pad does not rumble on
+Android: SDL 2.32.10's Android joystick driver has no rumble at all
 (`ANDROID_JoystickRumble` is `SDL_Unsupported`), so a Bluetooth or USB pad
 stays still whatever it is. With Input > Vibration on Auto (the default) the
 device shakes only when the pad in use is its own (Android's
@@ -627,7 +664,7 @@ what the file said.
   and SDL loads `libSDL2.so` and `libmain.so` and calls `SDL_main`, which is
   `main()` of `src/game/main.c`.
 - **Host.** `recomp_android_host_init()` (toolkit) sends stdout and stderr to
-  logcat (tag `burnout3`) and to `takedawn.log`, and makes the files directory
+  logcat (tag `takedawn`) and to `takedawn.log`, and makes the files directory
   the working directory. From there on it is the Linux host.
 - **Memory.** No fixed low addresses: the guest's 4 GB are a reservation
   wherever the kernel puts it and every access adds `g_xbox_mem_offset`, as on
@@ -651,11 +688,12 @@ what the file said.
   `backtrace()`, which bionic has from API 33. Lower needs a fallback
   (`_Unwind_Backtrace`); below API 30 also `memfd_create`, and below 29 ELF
   TLS itself.
-- **Vblank lock.** `RECOMP_VBLANK_SYNC=display` takes the display's refresh
-  times from `VK_KHR_present_wait`, which no Android driver here offers: the
-  emulated vblank runs on its own 60 Hz timer beside the panel's. The Android
-  source would be `AChoreographer` or `VK_GOOGLE_display_timing` (offered by
-  the stock driver).
+- **Vblank lock.** `RECOMP_VBLANK_SYNC=display` normally takes the display's
+  refresh times from `VK_KHR_present_wait`, which no Android driver here offers.
+  On Android they come from the Choreographer (`android_vsync.c` in the
+  toolkit; `RECOMP_ANDROID_VSYNC=0` turns that off, and the emulated vblank
+  then runs on its own 60 Hz timer beside the panel's).
+  `VK_GOOGLE_display_timing` (offered by the stock driver) is not used.
 - **Three swapchain images at least** on this surface (two on the desktop
   hosts): one more frame of latency possible; to be measured (BO-74).
 - **The guest core.** Guest threads are pinned to the fastest core the process
@@ -694,10 +732,10 @@ what the file said.
 ## Devices
 
 Only the Retroid Pocket 5 has run the game. The rest of this table is read
-from the bundled Mesa's source (`src/freedreno/common/freedreno_devices.py`)
+from Mesa 26.2.4's source (`src/freedreno/common/freedreno_devices.py`)
 and from the makers' and reviewers' pages, and says "expected", not "works".
 
-| device | SoC, GPU | Android (as sold) | the Turnip in the APK (26.2.4) knows the GPU | state |
+| device | SoC, GPU | Android (as sold) | Mesa 26.2.4's Turnip knows the GPU (the APK's A725 build was not checked) | state |
 |---|---|---|---|---|
 | Retroid Pocket 5 | Snapdragon 865, Adreno 650 | 13 | yes | **tested**: all of this document |
 | Retroid Pocket 6 | Snapdragon 8 Gen 2 (QCS8550), Adreno 740 | 13 | yes (FD740, KGSL chip id `0x43050a01`) | expected; not run |

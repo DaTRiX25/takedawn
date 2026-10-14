@@ -20,8 +20,8 @@ builds everything it can reach, smoke-runs it, and leaves in `dist/0.1.0/`
 | `Takedawn-0.1.0-android-arm64.apk` | `build-android.sh`, `sign-android.sh` | built on the Android build machine, signed here |
 | `SHA256SUMS`, `BUILDINFO` | `release.sh` | |
 
-**Nothing is uploaded, tagged or pushed** by any of these scripts, and none
-has a step that could. Publishing is done by a person.
+None of these scripts uploads, tags or pushes anything, and none
+has a step that could. A person publishes.
 
 Nothing is code-signed on any platform (decided); what the player sees at
 first start is under [Unsigned](#unsigned-what-the-player-sees).
@@ -309,7 +309,7 @@ signed APK in `SHA256SUMS`.
 ## Updating (BO-100)
 
 An update is a new download put over the old one; nothing is rebuilt and
-nothing is asked of the disc again. The player's things are not in the
+nothing is asked of the disc again. The player's data is not in the
 program: saves and settings, the game data installed from the disc, and the
 shader cache are in the user folders (Windows `%APPDATA%\Takedawn` and
 `%LOCALAPPDATA%\Takedawn`, macOS `~/Library/Application Support/Takedawn` and

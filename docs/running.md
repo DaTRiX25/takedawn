@@ -23,9 +23,9 @@ Delete its `UDATA` to go through first boot again.
 - **`--record out.mp4`** writes every presented frame as a BMP into
   `%TEMP%\bo3rec_<pid>\`. When the run ends, after `--seconds N` or on Ctrl+C,
   it encodes them with `ffmpeg` at 30 fps. If ffmpeg is missing or fails, the
-  frames stay where they are and the path is printed. The frames are buffered on
-  disk rather than piped, because at a few fps there is nothing to gain from
-  streaming, and an encoder that fails can't lose the run.
+  frames stay where they are and the path is printed. The frames go to
+  disk, not through a pipe: at a few fps streaming gains nothing, and an encoder
+  that fails cannot lose the run.
 
 The fps is real frames per wall-clock second. The title steps its simulation a
 fixed amount per frame, so at 3 fps a race plays in slow motion but correctly,
@@ -174,7 +174,8 @@ line `[REPORT] bug_report: done: <path>` names the archive.
 ## Pads
 
 Two pads are connected by default. Pad 1 is XInput pad 1, pad 2 is XInput pad 2.
-There is no keyboard mapping: Burnout 3's menus and races read only the pad.
+The keyboard also drives pad 1 with a fixed map ([controls.md](controls.md#the-keyboard)).
+`RECOMP_KEYBOARD=0` turns it off; on Android it is off unless `RECOMP_KEYBOARD=1`.
 
 The driving controls can be the PS2 version's instead of the Xbox one's
 (`input.control_scheme = ps2`, overlay: Input > Driving controls,
@@ -221,7 +222,7 @@ append a press, repeat.
 | Other | `start back lthumb rthumb` |
 | Second pad | prefix with `p2-`, e.g. `p2-a`, `p2-rt:60000` |
 
-Timing the menus takes care:
+Menu timing needs care:
 
 - D-pad presses want about 200 ms. Longer ones auto-repeat once the menus run at
   full speed.
@@ -266,7 +267,7 @@ pages.
 | Android | on | 16:9 | on | letterbox | linear | 1.5 | FXAA | 0.30 | 2x | off | original |
 | any `--headless` run | - | 4:3 | off | - | - | 1 | off | 0 | off | off | original |
 
-The picture is the owner's decision of 2026-10-12; the overlay's "Y default"
+These values are the owner's decision of 2026-10-12; the overlay's "Y default"
 and "Reset this page" go back to the same per-platform values. The Deck's
 earlier row (3x, `fill16x10`, no post passes) was measured there in Game Mode
 with the Balanced power mode, a 90 s race: flips p50 16.67 / p95 16.78 / p99
@@ -301,7 +302,7 @@ Defaults that `main.c` sets, which you can override:
 |---|---|---|
 | `RECOMP_PB_EXEC` | `1` | The software GPU. `0` turns it off: nothing is drawn, but boot runs ~50× faster, which helps when following it by file accesses. |
 | `RECOMP_FB_WINDOW` | `1` unless `--headless` | The window. |
-| `RECOMP_USB` / `RECOMP_USB_PADS` | `1` / `2` | The USB host and pad count (1–4). Split-screen modes are greyed out with one pad. |
+| `RECOMP_USB` / `RECOMP_USB_PADS` | `1` / `2` | The USB host and pad count (1 to 4). Split-screen modes are greyed out with one pad. |
 | `RECOMP_AC97_READY` | `1` | DirectSound refuses to start until the AC'97 codec reports ready, and RenderWare won't start without audio. |
 | `RECOMP_APU_DSP_ACK` | `0x825F8810` | The DSP doorbell DirectSound waits on; [boot.md](boot.md) #5. |
 

@@ -4,10 +4,10 @@ Both effects are the title's own, drawn by its code through extra render
 passes. Two settings switch them: overlay Graphics page, "Bloom" and "Motion
 blur"; `settings.toml` `[graphics] bloom` / `motion_blur`;
 `RECOMP_GFX_BLOOM=0`, `RECOMP_GFX_MOTION_BLUR=0`. Both default to on (the
-console's look) on every platform. Off is an opt-in guest patch
+console's look) on every platform. Switching an effect off is an opt-in guest patch
 (`config/patches.json`; toolkit `docs/pipeline/04-lifting.md`, Guest patches)
 that makes the title's own condition for drawing the effect read false, so
-the title takes the path it already has for not drawing it. No draw call is
+the title takes its existing path for not drawing it. No draw call is
 removed and no game code is replaced. A change shows from the next frame the
 title builds; nothing latches.
 

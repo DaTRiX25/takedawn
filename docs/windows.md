@@ -4,7 +4,7 @@ The Windows build uses the same stack as Linux: SDL2 window, audio (WASAPI via
 SDL) and pads, the Vulkan backend (`nv2a_pb_vulkan.c`, `fb_present_vulkan.c`,
 glslang) and the Dear ImGui overlay. The kernel and platform layers stay the
 native Win32 ones (VirtualAlloc placeholders, vectored-exception MMIO traps,
-waitable timers, `%APPDATA%\Burnout3` saves). The older GDI + Direct3D 11 +
+waitable timers, `%APPDATA%\Takedawn` saves). The older GDI + Direct3D 11 +
 XAudio2 + XInput path stays behind `-DBO3_WIN_VULKAN=OFF` (MSVC only). The
 Vulkan build needs clang (llvm-mingw): pthread and the GNU-style headers are
 used by the shared SDL code, so MSVC is not supported for it.
@@ -37,12 +37,12 @@ Windows 10+, `vulkan-1.dll` is the GPU driver's.
    wasapi`, then the intro, the menu.
 4. Check: the window is fully on the screen (title bar visible), picture,
    sound, pad, rumble, the overlay (Back+Start or F1), saves in
-   `%APPDATA%\Burnout3`, Alt+F4 (the process must end).
+   `%APPDATA%\Takedawn`, Alt+F4 (the process must end).
 5. The first run compiles shaders (hitches), caches are in
-   `%LOCALAPPDATA%\xboxrecomp\cache`. Crash reports: `%APPDATA%\Burnout3\crash`.
+   `%LOCALAPPDATA%\Takedawn\cache`. Crash reports: `%APPDATA%\Takedawn\crash`.
 6. A bug report ([running.md](running.md#reporting-a-bug)): the overlay's
    Advanced page, "Create bug report", and `burnout3.exe --bug-report` from a
-   terminal; both write `%APPDATA%\Burnout3\reports\burnout3-report-*.zip`.
+   terminal; both write `%APPDATA%\Takedawn\reports\takedawn-report-*.zip`.
    Open it: `system.txt` names Windows, the CPU and the GPU with its driver,
    and no file in it has your user name or the PC's name.
 
@@ -121,8 +121,8 @@ line (`QProcess`), and reads paths from variables with
 - **Exit.** Closing the window ends the process (the exit-time log flush used
   to block forever on Windows).
 - **Pads.** Pads come from SDL's game controller API (XInput, DirectInput,
-  HID); a pad gets its port at its first button press. The keyboard drives only
-  the overlay (F1, arrows, Enter, Esc). Without a pad, `RECOMP_PAD_LIVE` and
+  HID); a pad gets its port at its first button press. The keyboard is a pad on port 0
+  with a fixed map ([controls.md](controls.md#the-keyboard)); F1 opens the overlay. Without a pad, `RECOMP_PAD_LIVE` and
   `RECOMP_PAD_SCRIPT` drive the title ([running.md](running.md)).
 - **Rare long stalls.** One frame of 0.3-5 s per 5-10 minute run was seen on
   the first day; the stall hunt put those down to other work on the test PC.

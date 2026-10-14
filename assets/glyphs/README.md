@@ -19,16 +19,15 @@ strokes.
 | `steam/` | Steam Deck, Steam Controller | A B X Y as light letters on dark buttons, L1 R1 L2 R2, a Menu ring |
 | `keyboard/` | the keyboard (a mapped key was the last input) | key caps on the same cells: Space, a backspace tag, Shift, Ctrl (A B X Y); Q and E (white, black); S and W (the triggers: brake, accelerate); an Enter arrow for Start; arrow keys in place of the d-pad triangles (`dpad.svg`, 32x16) |
 | `xbox_modern/` | Xbox 360 / One / Series pads | LB RB LT RT and a Menu ring; A B X Y stay the game's own |
-
 | `xbox_swapped/`, `xbox_modern_swapped/`, `playstation_swapped/`, `playstation5_swapped/`, `steam_swapped/` | the same sets when the pad is read by letter: `input.face_layout = nintendo` moves the game's A to the right-hand button, so the prompts show what that button is | the pictures of A and B, and of X and Y, exchanged: B A Y X on the Xbox and Valve pads, circle cross triangle square on the PlayStation ones. The Xbox discs are drawn here in the four Xbox colours (the unswapped Xbox set keeps the game's own) |
 
-The prompt always shows the button that really does the action after the face layout. The table
+The prompt shows the button that actually triggers the action once the face layout is applied. The table
 of which set draws what, for each pad and layout, is in the toolkit's `src/input/pad_glyphs.h`;
 `tools/glyphs/tests` checks the pictures against it.
 
-Each folder has `buttons.svg` (128x64) and, `a_button.svg` and `b_button.svg` (32x32). An SVG has the size of the game
-texture its pictures go into and a picture in each place the game keeps a
-prompt; those places are numbers (`LAYOUT` in `draw.py`, the rectangles in
+Each folder has `buttons.svg` (128x64), `a_button.svg` and `b_button.svg` (32x32). An SVG has the size of the game
+texture it goes into and holds a picture at each place where the game keeps a
+prompt. The positions are numbers (`LAYOUT` in `draw.py`, the rectangles in
 `src/game/glyphs.c`). At run time the pictures are copied over the game's
 texture as it is uploaded to the GPU; where a set changes nothing (the A B X Y
 discs of the Xbox set) the game's own texels simply stay.
@@ -36,8 +35,8 @@ discs of the Xbox set) the game's own texels simply stay.
 The SVGs are written by `tools/glyphs/draw.py` (`--check` tells whether they
 match it) and rendered at 1:1 by `tools/glyphs/build.py` when the game is
 built, with the renderer `assets/icon` uses: `resvg`, `rsvg-convert` or the
-`resvg_py` module (`-DBO3_GLYPHS_PYTHON=`, or `TAKEDAWN_PYTHON`). Nothing
-rendered is kept here. A developer build without a renderer is made without
-the prompts (a warning); a release build stops.
+`resvg_py` module (`-DBO3_GLYPHS_PYTHON=`, or `TAKEDAWN_PYTHON`). No
+rendered files are kept here. A developer build without a renderer builds without
+the prompts and prints a warning; a release build stops.
 
     tools/glyphs/build.py assets/glyphs out.c out.h --png preview/   # to look at them

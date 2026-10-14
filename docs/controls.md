@@ -108,7 +108,7 @@ on a Steam Deck). Start alone is not delayed.
 
 ## The title has no layout choice of its own
 
-Checked first, because switching one would have been better than rewriting
+This was checked first, because switching a layout would have been better than rewriting
 the pad:
 
 - Its Controllers screen (pause menu > Controllers) has one line per
@@ -171,8 +171,8 @@ held back: the button that confirmed "Resume" may stay down and accelerate.
   the keys keep their documented Xbox buttons (see below).
 - **Rumble**: the title's motor speeds do not pass through this.
 - **Replays**: a replay is started from the results screen, where the layout
-  is already off, and it stays off (the results byte). Whether a replay reads
-  the pad for anything was not looked at.
+  is already off, and it stays off (the results byte). Not checked: whether a replay reads
+  the pad for anything.
 - **The overlay**: while it is open the title reads a neutral pad anyway.
 - **Button prompts**: they show the game's own button, not the PS2 layout's.
   In Crash mode the Crashbreaker prompt shows B (or Circle), while the PS2
@@ -190,7 +190,7 @@ button does nothing while driving. In menus the face layout alone holds: the
 right-hand button, printed A, confirms.
 
 The button prompts follow it (`input.glyphs`, `assets/glyphs`): a prompt shows
-the button that really does the action, as the chosen pad prints it. With the
+the button that triggers the action, as the chosen pad prints it. With the
 Nintendo layout the title's A is the right-hand button, so the Xbox and Steam
 sets show B where the game says A, the PlayStation sets the circle, Positional
 the right-hand dot, and the Nintendo set shows A. The table is in the

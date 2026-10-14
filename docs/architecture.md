@@ -11,9 +11,9 @@
 > [windows.md](windows.md), [android.md](android.md) and
 > [shader-prebuild.md](shader-prebuild.md).
 
-Two repositories, one process. This repo holds what is specific to Burnout 3;
-[xboxrecomp](https://github.com/sp00nznet/xboxrecomp) holds the recompiler and
-the Xbox runtime every title on it shares.
+The code is split over two repositories and runs as one process. This repo holds what is specific to
+Burnout 3. [xboxrecomp](https://github.com/sp00nznet/xboxrecomp) holds the recompiler and
+the Xbox runtime that every title on it shares.
 
 ```
  your disc image
@@ -64,5 +64,5 @@ The first version of this project was a fork with its own kernel, D3D and
 audio. It also had hand-written menus, a pseudo-3D road and fake physics drawn
 over a game that never really got going. Everything that fork learned about the
 Xbox is now in xboxrecomp, where HL2, Wreckless and the other titles share it.
-What stays here is only what is true of Burnout 3 alone: addresses, seeds and
+Only what is true of Burnout 3 alone stays here: addresses, seeds and
 boot defaults. See [boot.md](boot.md) for each of those and why it is needed.

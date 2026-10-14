@@ -21,11 +21,11 @@ the title's own values, through `config/patches.json`.
   it. `src/game/main.c` keeps the answer per flip number; the presenter
   (`nv2a_present_frame_aspect_fn`) shows a wide frame at the wide aspect and
   every other frame (menus, loading screens, videos, the garage) at 16:9 in the
-  middle of the window. The switch is on the frame: the loading screen's last
+  middle of the window. The mode switches per frame: the loading screen's last
   frame is 16:9, the race's first is wide (checked with every flip dumped).
 - **The front-end scene over a wide frame** (pause menu, race intro banner,
   crash results) is squeezed about the centre to the size it has in 16:9.
-- **The HUD** follows through `aspect` (the widescreen HUD fix, which should be
+- **The HUD** follows `aspect` (set by the widescreen HUD fix, which should be
   on with this).
 - The setting is sampled when a stage is set up: a change shows from the next
   race or Restart.

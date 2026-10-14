@@ -7,7 +7,7 @@ at the first crash. The pre-build makes the game play those scenes by itself
 once, without a window or sound, so everything they need is compiled and
 listed before the player gets there.
 
-It is optional, always. The setup window has it as a box that is ticked by
+It is always optional. The setup window has it as a box that is ticked by
 default (*Prepare graphics for smooth first races*, about 2 minutes, ~10 MB;
 untick it to skip), and the settings overlay has it as an action (Graphics,
 *Build shaders now*). The game never asks about it by itself at its first
@@ -24,8 +24,8 @@ the player's machine, from the player's own disc, and stays there.
 ## What is on disk
 
 The shader cache directory (`render.shader_cache` / `RECOMP_RENDER_SHADER_CACHE`,
-default macOS `~/Library/Caches/burnout3`, Linux `$XDG_CACHE_HOME/burnout3` or
-`~/.cache/burnout3`, Windows `%LOCALAPPDATA%\xboxrecomp\cache`):
+default macOS `~/Library/Caches/Takedawn`, Linux `$XDG_CACHE_HOME/takedawn` or
+`~/.cache/takedawn`, Windows `%LOCALAPPDATA%\Takedawn\cache`):
 
 | file | what | backend |
 |---|---|---|
@@ -132,8 +132,8 @@ No setting, option or environment variable of the game turns this on: only
 a scene process of the pre-build does (`--build-shaders-scene`, which needs
 the pre-build's own environment to start at all).
 
-Before the first scene the game's executable is read for what it can ask for
-whether a scene shows it or not, and the keys go into the list: its vertex
+Before the first scene the game's executable is read for everything it can ask for,
+whether or not a scene shows it, and the keys go into the list: its vertex
 programs (28 blobs of the XDK's compiled-shader format, the microcode as it is
 uploaded) and its pixel-shader definitions (34 `D3DPIXELSHADERDEF` blocks; each
 gives one combiner state per way its texture stages can be bound, 318 in all,
@@ -353,10 +353,9 @@ are then compiled once, the first time a race shows them.
   opened. The driver's test is the toolkit's `tests/autoplay`.
 - The scenes' pace is the toolkit's time warp (`src/platform/host_time.h`,
   `xbox_TimeWarpEnable`), switched on by a scene process and by nothing
-  else. As Dolphin and other emulators run unthrottled, with the difference
-  that the clock here is not scaled but moved, a frame at a time, to where
-  the title waits for it: no frame is ever late to the title, so it never
-  takes two steps in one.
+  else. Dolphin and other emulators run unthrottled too. Here the clock is
+  never scaled: it is moved a frame at a time to where the title waits for
+  it. No frame is ever late to the title, so it never takes two steps in one.
 - Borrowed: Dolphin's per-game pipeline UID cache compiled at start-up (the
   key list and its pre-warm, since BO-58) and its choice of UIDs over driver
   binaries on Metal; Xerenge's install-time step as the place to do it, with
