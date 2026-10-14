@@ -35,6 +35,10 @@
 **TL;DR**
 
 - Takedawn runs the original Xbox *Burnout 3: Takedown* as a native program.
+- Compared with the console: up to 4x resolution, widescreen and ultrawide,
+  60 fps crash cameras, and music and 60 fps in split screen. The Xbox custom
+  soundtracks work with a folder of your own MP3 or FLAC files.
+  [Highlights](#highlights) has the rest.
 - [Download](#download) it for your device and start it.
 - Point it at a disc image of your own Burnout 3 (USA). It installs the game
   data, then you play.
