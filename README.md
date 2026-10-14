@@ -409,10 +409,6 @@ The Android build is tested on a Retroid Pocket 5. The [Devices](#devices) list 
    touch controls. To open the settings press Back and Start together, which
    is Select and Start on a Retroid Pocket.
 
-On a Retroid Pocket, keep the device's own controller mode on Xbox and use
-Input > Face buttons in the game for the Nintendo layout. The device's Retro
-mode swaps buttons where the game can't see it, so the prompts can't follow it.
-
 The game needs Vulkan 1.3. Most Snapdragon devices ship a driver that offers
 less, so the APK carries Mesa's open-source Turnip driver
 and loads it inside the app. Nothing outside the app is changed and no root
