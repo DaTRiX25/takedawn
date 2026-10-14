@@ -42,16 +42,15 @@ public class StartActivity extends Activity {
         if (!GpuDriver.usable(this)) {
             // No silent fall to the CPU rasteriser at a few frames a second.
             canStartAnyway = true;
-            page("This device's graphics driver offers Vulkan "
+            page("This device's graphics driver has Vulkan "
                     + GpuDriver.versionString(GpuDriver.systemVulkanVersion(this))
-                    + "; the game needs Vulkan 1.3.\n\n"
+                    + ". The game needs Vulkan 1.3.\n\n"
                     + (GpuDriver.isAdreno()
-                        ? "For an Adreno GPU, put a Mesa Turnip driver (a .so, or a driver"
-                          + " package .zip as the emulators use) into\n\n"
-                          + GpuDriver.userDir(this).getAbsolutePath() + "\n\nand open the app again.\n\n"
-                        : "There is no replacement driver for this GPU.\n\n")
-                    + "Tap, or press A, to start anyway: the game then draws on the CPU,"
-                    + " a few frames per second.");
+                        ? "Open \"Takedawn: graphics driver\" from the launcher to load a"
+                          + " Turnip driver file (.zip).\n\n"
+                        : "There is no other driver for this GPU.\n\n")
+                    + "Tap or press A to start anyway. The game then runs on the processor"
+                    + " at a few frames per second.");
             return;
         }
         startGame();
@@ -72,7 +71,10 @@ public class StartActivity extends Activity {
     }
 
     private void startGame() {
-        startActivity(new Intent(this, GameActivity.class));
+        // A restart (RestartActivity) names the process it waited for; the
+        // game checks again that it is gone before it opens the GPU.
+        startActivity(new Intent(this, GameActivity.class).putExtra(RestartActivity.EXTRA_PID,
+                getIntent().getIntExtra(RestartActivity.EXTRA_PID, 0)));
         finish();
     }
 

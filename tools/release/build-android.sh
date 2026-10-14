@@ -24,8 +24,9 @@
 # signed APK.
 #
 # In the APK: libmain.so (the program), SDL2, libc++, libadrenotools' hooks,
-# Mesa Turnip built by tools/android/fetch-deps.sh from Mesa's release tarball
-# with tools/android/patches/*.patch. No game data, no shader key list.
+# a Mesa Turnip driver: by default the prebuilt A725 build that
+# tools/android/fetch-deps.sh takes out of UnleashedRecomp-Android's release
+# (BO-152, docs/android.md). No game data, no shader key list.
 #
 # Environment, or tools/release/local.env (git-ignored); no machine name is
 # in a committed file:
@@ -112,7 +113,8 @@ tools/android/fetch-deps.sh > ../../fetch-deps.log 2>&1 || { tail -20 ../../fetc
 tools/android/build-apk.sh -DBO3_RELEASE=ON \${TAKEDAWN_PYTHON:+-DBO3_GLYPHS_PYTHON=\$TAKEDAWN_PYTHON} > ../../build-apk.log 2>&1 || { grep -n "error" ../../build-apk.log | head -20; tail -5 ../../build-apk.log; exit 1; }
 grep -a -m1 "regen key" ../../build-apk.log || true
 grep -a "versionCode\|with Mesa\|licence files" ../../build-apk.log || true
-cat "\${BO3_ANDROID_DEPS:-\$HOME/.cache/bo3-android-deps}/turnip/SOURCE.txt" | sed 's/^/   turnip: /'
+TDIR=turnip-a725; [ "\${BO3_ANDROID_TURNIP:-1}" = mesa ] && TDIR=turnip
+cat "\${BO3_ANDROID_DEPS:-\$HOME/.cache/bo3-android-deps}/\$TDIR/SOURCE.txt" | sed 's/^/   turnip: /'
 t=\$(mktemp); ( cd src/game/recomp/gen && for f in \$(ls | grep '^recomp_' | LC_ALL=C sort); do printf '%s  %s\n' "\$(sha256sum "\$f" | cut -d' ' -f1)" "\$f"; done ) > "\$t"
 echo "GENTREE \$(sha256sum "\$t" | cut -d' ' -f1)"; rm -f "\$t"
 REMOTE

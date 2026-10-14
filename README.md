@@ -165,7 +165,7 @@ an undistorted HUD, ultrawide, and a settings menu you can open mid-race.
 | Mac (Apple silicon, macOS 13 or newer) | [`Takedawn-0.1.0-macos-arm64.dmg`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-macos-arm64.dmg) | about 19 MB |
 | Windows (64-bit) | [`Takedawn-0.1.0-windows-x64-setup.exe`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-windows-x64-setup.exe) | about 18 MB |
 | Linux and Steam Deck (x86-64) | [`Takedawn-0.1.0-linux-x86_64.AppImage`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-linux-x86_64.AppImage) | about 23 MB |
-| Android (arm64, Snapdragon), experimental | Coming soon | |
+| Android (arm64, Snapdragon), experimental | [`Takedawn-0.1.0-android-arm64.apk`](https://github.com/xenophobentx/takedawn/releases/download/v0.1.0/Takedawn-0.1.0-android-arm64.apk) | about 14 MB |
 
 All files are on the [releases page][releases], with a `SHA256SUMS` file and a
 `BUILDINFO` file that says what each was built from. To check a download, run
@@ -388,8 +388,6 @@ Menu (three lines).
 Tips for the Deck are under [Tips for smooth play](#tips-for-smooth-play).
 
 ### Android (experimental)
-
-The Android APK is not on the releases page yet. It will be once a graphics bug from the last round of tests is fixed.
 
 I test the Android build on a Retroid Pocket 5. The [Devices](#devices) list has the phones it has also run on.
 
@@ -802,6 +800,7 @@ handled.
   button prompts. The Crashbreaker prompt says B (or Circle), while R2 fires
   it.
 - Loading screen might wait a bit too much at gamestart... will fix
+- The Android APK doesn't have the loading wait.
 
 ## What's next
 

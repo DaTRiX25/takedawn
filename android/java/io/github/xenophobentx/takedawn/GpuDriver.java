@@ -48,8 +48,14 @@ import java.util.zip.ZipInputStream;
  * that the game removes once it has presented its first frames through
  * Vulkan. A start that finds the note still there knows the last one did not
  * get that far (the driver crashed, or lacks what the game needs, and the
- * game fell to its CPU rasteriser): it goes back to the bundled driver, says
- * so, and stays there until the player chooses again. No loop.
+ * game fell to its CPU rasteriser): it goes back to Automatic (fallback()),
+ * says so, and stays there until the player chooses again. A driver that
+ * gets past its first frames and loses the device later does the same
+ * (GameActivity.graphicsDriverLost). No loop.
+ *
+ * Turnip drives Adreno GPUs only: on any other GPU (Mali, Xclipse) the
+ * bundled driver, a package and the driver folder are never loaded, and
+ * Automatic is the device's own driver.
  */
 final class GpuDriver {
     static final String BUNDLED = "libvulkan_freedreno.so";
@@ -82,8 +88,11 @@ final class GpuDriver {
         return prefs(c).getString("choice", "auto");
     }
 
+    // commit(), not apply(): a choice made on the warning box or after a
+    // lost device is followed at once by the process's end (the restart),
+    // which an apply() still in flight does not survive.
     static void setChoice(Context c, String v) {
-        prefs(c).edit().putString("choice", v).remove("note").apply();
+        prefs(c).edit().putString("choice", v).remove("note").commit();
         trialFile(c).delete();
     }
 
@@ -97,12 +106,12 @@ final class GpuDriver {
         if ("system".equals(ch)) {
             return "this device's driver (Vulkan " + versionString(sys) + ")";
         }
-        if ("auto".equals(ch) && userFile(c) != null) {
+        if ("auto".equals(ch) && userFile(c) != null && isAdreno()) {
             return "the file in the driver folder (" + userFile(c).getName() + ")";
         }
-        if (hasBundled(c) && (isAdreno() || !"auto".equals(ch))) {
+        if (hasBundled(c) && isAdreno()) {
             String mesa = prefs(c).getString("bundledMesa", null);
-            return "Mesa Turnip, in the app" + (mesa != null ? " (" + mesa + ")" : "");
+            return "built-in Turnip" + (mesa != null ? " (Mesa " + mesa + ")" : "");
         }
         return "this device's driver (Vulkan " + versionString(sys) + ")";
     }
@@ -111,6 +120,9 @@ final class GpuDriver {
     static String nextChoice(Context c) {
         String ch = choice(c);
         boolean pkg = !customMeta(c).isEmpty();
+        if (!isAdreno()) {
+            return "auto";      // the device's own driver is the only one
+        }
         if ("auto".equals(ch) || "bundled".equals(ch)) {
             return "system";
         }
@@ -118,6 +130,42 @@ final class GpuDriver {
             return pkg ? "custom" : (hasBundled(c) ? "bundled" : "system");
         }
         return hasBundled(c) ? "bundled" : "system";
+    }
+
+    /**
+     * Where a driver that failed goes back to: Automatic, unless a file in
+     * the driver folder would be loaded again under Automatic; then the
+     * bundled driver (on an Adreno) or the device's own.
+     */
+    static String fallback(Context c) {
+        if (isAdreno() && userFile(c) != null) {
+            return hasBundled(c) ? "bundled" : "system";
+        }
+        return "auto";
+    }
+
+    /** "Automatic", or what fallback() chose, for a note. */
+    static String fallbackName(Context c, String to) {
+        return "auto".equals(to) ? "Automatic" : describe(c, to);
+    }
+
+    /**
+     * The driver that was chosen failed (no first frames, or a lost device
+     * later): the choice goes back (fallback()) with a note for the driver
+     * page. Returns the note.
+     */
+    static String dropFailed(Context c, String was, boolean lost) {
+        String to = fallback(c);
+        String note = lost
+                ? (was.isEmpty() ? "The driver" : Character.toUpperCase(was.charAt(0))
+                        + was.substring(1)) + " stopped working while the game ran. The game is back on "
+                        + fallbackName(c, to) + "."
+                : "The last start on " + was + " didn't get to the first frames. The game is"
+                        + " back on " + fallbackName(c, to) + ".";
+        prefs(c).edit().putString("choice", to).putString("note", note).commit();
+        trialFile(c).delete();
+        Log.i(GameActivity.TAG, "GPU driver: " + note);
+        return note;
     }
 
     static File customDir(Context c) {
@@ -384,17 +432,15 @@ final class GpuDriver {
             } catch (Exception e) {
                 was = "the chosen driver";
             }
-            trial.delete();
-            if (hasBundled(c)) {
-                note = "The last start with " + was + " did not get to its first frames."
-                        + " The Mesa Turnip driver in the app is used now; choose again under"
-                        + " \"Takedawn: graphics driver\".";
-                prefs(c).edit().putString("choice", "bundled").putString("note", note).apply();
-                ch = "bundled";
-            }
+            dropFailed(c, was, false);
+            ch = choice(c);
+            // The toast is two lines at most (Android 12 on); the whole
+            // story is on the driver page.
+            note = "The picked driver didn't start, so the game is back on "
+                    + fallbackName(c, ch) + ".";
         }
         GpuDriver d = null;
-        if ("custom".equals(ch)) {
+        if ("custom".equals(ch) && isAdreno()) {
             java.util.Map<String, String> m = customMeta(c);
             if (!m.isEmpty()) {
                 d = new GpuDriver(customDir(c).getAbsolutePath(), m.get("lib"),
@@ -403,8 +449,8 @@ final class GpuDriver {
             }
         } else if ("system".equals(ch)) {
             d = new GpuDriver(null, null, sysWhat + ", as chosen");
-            d.trial = hasBundled(c);
-        } else if ("auto".equals(ch)) {
+            d.trial = hasBundled(c) && isAdreno();
+        } else if ("auto".equals(ch) && isAdreno()) {
             File user = userFile(c);
             if (user != null && !"bundled".equals(override)) {
                 try {
@@ -422,9 +468,10 @@ final class GpuDriver {
             // Adreno to drive (the one this program is tested with); the
             // device's own is a choice, not the default. A forced "system"
             // that is too old still gets Turnip from the override "bundled".
-            boolean wantBundled = "bundled".equals(override) || "bundled".equals(ch)
-                    || "custom".equals(ch) || ("auto".equals(ch) && isAdreno())
-                    || (sys < VULKAN_1_3 && isAdreno() && !"system".equals(ch));
+            // Never on a GPU that is not an Adreno (a choice of "bundled"
+            // left from before is Automatic there).
+            boolean wantBundled = "bundled".equals(override)
+                    || (isAdreno() && !"system".equals(ch));
             if (wantBundled && hasBundled(c)) {
                 d = new GpuDriver(c.getApplicationInfo().nativeLibraryDir, BUNDLED,
                         "the Mesa Turnip driver in the app (the device's own is Vulkan "

@@ -39,8 +39,15 @@
         android:extractNativeLibs="true"
         android:hasFragileUserData="true"
         android:isGame="true"
+        android:appCategory="game"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true">
+
+        <!-- A game to the system's game services (appCategory above; Game
+             Turbo and the like find games that way) and its game modes:
+             the system does not lower its resolution or frame rate. -->
+        <meta-data android:name="android.game_mode_config"
+            android:resource="@xml/game_mode_config" />
 
         <!-- simpleperf from adb may sample a release build. -->
         <profileable android:shell="true" />

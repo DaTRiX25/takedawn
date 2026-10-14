@@ -46,6 +46,7 @@ public class GameActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle state) {
+        waitForOldGame();
         File files = filesDir(this);
         try {
             String dir = files.getAbsolutePath();
@@ -69,6 +70,7 @@ public class GameActivity extends SDLActivity {
             GpuDriver d = GpuDriver.choose(this, env.get("RECOMP_ANDROID_DRIVER"));
             startedWith = GpuDriver.describe(this, GpuDriver.choice(this));
             startedBundled = GpuDriver.BUNDLED.equals(d.name);
+            startedOverride = env.get("RECOMP_ANDROID_DRIVER") != null;
             Log.i(TAG, "GPU driver: " + d.what);
             if (d.name != null) {
                 Os.setenv("RECOMP_ANDROID_DRIVER_DIR", d.dir, true);
@@ -85,7 +87,8 @@ public class GameActivity extends SDLActivity {
             if (d.trial) {
                 File trial = GpuDriver.trialFile(this);
                 try (java.io.FileOutputStream o = new java.io.FileOutputStream(trial)) {
-                    o.write(d.what.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    // For the note when it fails: the player's words.
+                    o.write(startedWith.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 }
                 Os.setenv("RECOMP_ANDROID_DRIVER_TRIAL", trial.getAbsolutePath(), true);
             }
@@ -131,21 +134,91 @@ public class GameActivity extends SDLActivity {
     }
 
     private String startedWith = "";
-    private boolean startedBundled;
+    private boolean startedBundled, startedOverride;
 
-    /** Ends this process; a page in another process starts the app again. */
-    private void restartApp() {
+    /**
+     * A game process from before (a restart, or a start right after a quit)
+     * that is still ending: the GPU driver (kgsl) must not be opened while
+     * it still holds the GPU. Waits for it, up to a few seconds, before SDL
+     * loads the game's library. The pid a restart waited for comes with the
+     * intent (RestartActivity); any other process of this app under the
+     * main process's name is looked for as well.
+     */
+    private void waitForOldGame() {
+        int named = getIntent() != null ? getIntent().getIntExtra(RestartActivity.EXTRA_PID, 0) : 0;
+        int other = RestartActivity.otherGameProcess(this);
+        long t0 = android.os.SystemClock.uptimeMillis();
+        if (!RestartActivity.alive(this, named) && other == 0) {
+            Log.i(TAG, "start: no game process from before (pid " + android.os.Process.myPid()
+                    + (named > 0 ? ", the restart's " + named + " is gone" : "") + ")");
+            return;
+        }
+        Log.w(TAG, "start: a game process from before is still there (" + (named > 0 ? named : other)
+                + "); waiting for it");
+        while (android.os.SystemClock.uptimeMillis() - t0 < 3000) {
+            other = RestartActivity.otherGameProcess(this);
+            if (!RestartActivity.alive(this, named) && other == 0) {
+                break;
+            }
+            android.os.SystemClock.sleep(25);
+        }
+        long waited = android.os.SystemClock.uptimeMillis() - t0;
+        if (RestartActivity.alive(this, named) || other != 0) {
+            Log.w(TAG, "start: still there after " + waited + " ms; starting anyway");
+        } else {
+            Log.i(TAG, "start: the game process from before is gone after " + waited + " ms");
+        }
+    }
+
+    /**
+     * Ends this game: the activity is finished (SDL then sends SDL_QUIT, the
+     * window loop ends, the runtime tears the GPU down and calls exit(0):
+     * fb_present_sdl.c, "the way out on Android"). Should the process still
+     * be there a while later, it is ended from here.
+     */
+    private void endGame(final String why) {
+        Log.i(TAG, "end: " + why + ": finishing the activity; the runtime tears the GPU down"
+                + " and ends the process");
         runOnUiThread(new Runnable() {
             @Override public void run() {
-                startActivity(new android.content.Intent(GameActivity.this, RestartActivity.class));
-                new android.os.Handler().postDelayed(new Runnable() {
-                    @Override public void run() {
-                        finishAndRemoveTask();
-                        System.exit(0);
-                    }
-                }, 400);
+                finishAndRemoveTask();
             }
         });
+        armKillWatchdog(why);
+    }
+
+    private static boolean killArmed;
+
+    /** The last resort: the process ends this long after the way out began. */
+    private static synchronized void armKillWatchdog(final String why) {
+        if (killArmed) {
+            return;
+        }
+        killArmed = true;
+        Thread t = new Thread(new Runnable() {
+            @Override public void run() {
+                android.os.SystemClock.sleep(8000);
+                Log.w(TAG, "end (" + why + "): the process is still there after 8 s; killing it");
+                android.os.Process.killProcess(android.os.Process.myPid());
+            }
+        }, "takedawn-exit-watchdog");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /**
+     * Ends this process; a page in another process (RestartActivity) waits
+     * until it is gone and starts the app again. Any thread: the page is
+     * started at once, on the calling thread, so it is on its way even when
+     * the runtime ends the process right after this returns (the box after
+     * a lost device).
+     */
+    private void restartApp() {
+        int pid = android.os.Process.myPid();
+        Log.i(TAG, "restart: the restart page waits for this process (" + pid + ") to end");
+        startActivity(new android.content.Intent(this, RestartActivity.class)
+                .putExtra(RestartActivity.EXTRA_PID, pid));
+        endGame("restart");
     }
 
     /**
@@ -161,24 +234,79 @@ public class GameActivity extends SDLActivity {
     }
 
     /**
-     * The start-up warning's "Reset back to Turnip" (the runtime's window
-     * when no usable Vulkan driver was found, fb_present_sdl.c; BO-121): on
-     * a driver that cannot run the game there is no settings overlay to
-     * choose another one from, so the way back is on that window. doIt 0:
-     * whether there is something to go back to (the driver in the app, when
-     * this start was not on it). doIt 1: choose it and start again.
+     * The start-up warning's "Use built-in" (the runtime's window when no
+     * usable Vulkan driver was found, fb_present_sdl.c; BO-121): on a driver
+     * that cannot run the game there is no settings overlay to choose
+     * another one from, so the way back is on that window. doIt 0: what the
+     * window may offer, as bits: 1 the driver in the app to go back to (an
+     * Adreno, and this start was not on it), 2 a driver package (Turnip
+     * drives Adrenos only), 4 this start was on the driver in the app.
+     * doIt 1: back to Automatic (GpuDriver.fallback) and start again.
      */
     @SuppressWarnings("unused")
     int resetGraphicsDriver(int doIt) {
-        if (startedBundled || !GpuDriver.hasBundled(this)) {
-            return 0;
-        }
-        if (doIt != 0) {
-            GpuDriver.setChoice(this, "bundled");
-            Log.i(TAG, "GPU driver: reset to the Mesa Turnip driver in the app; restarting");
+        boolean adreno = GpuDriver.isAdreno();
+        int ways = (adreno && !startedBundled && GpuDriver.hasBundled(this) ? 1 : 0)
+                | (adreno ? 2 : 0) | (startedBundled ? 4 : 0);
+        if (doIt != 0 && (ways & 1) != 0) {
+            GpuDriver.setChoice(this, GpuDriver.fallback(this));
+            Log.i(TAG, "GPU driver: reset to " + GpuDriver.choice(this) + " (the driver in the"
+                    + " app); restarting");
             restartApp();
         }
+        return ways;
+    }
+
+    /**
+     * The graphics device was lost while the game ran (fb_present_sdl.c's
+     * box; BO-163): a driver other than the one in the app (a package, the
+     * device's own on an Adreno) is dropped as a failed trial would be, so
+     * a driver that dies later in a race does not come back at every start.
+     * Returns 1 when the choice went back (the box says so).
+     */
+    @SuppressWarnings("unused")
+    int graphicsDriverLost() {
+        if (startedBundled || startedOverride || !GpuDriver.isAdreno()
+                || !GpuDriver.hasBundled(this)) {
+            return 0;
+        }
+        GpuDriver.dropFailed(this, startedWith, true);
         return 1;
+    }
+
+    /**
+     * The start-up warning's "Driver package…" (fb_present_sdl.c; BO-153):
+     * the driver page on the system's file picker, over the game, which goes
+     * on on the CPU behind it. A package picked there is chosen and the app
+     * starts again on it (restartRunning); a cancelled picker leaves the page
+     * open, and Back the game. That is the way out on a GPU the Turnip in the
+     * app cannot run (an Adreno A6xx "gen1 low": Vulkan 1.0 only), where the
+     * warning has no reset to offer. Returns 1.
+     */
+    @SuppressWarnings("unused")
+    int pickDriverPackage() {
+        Log.i(TAG, "GPU driver: the warning's driver package: the driver page on the file picker");
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                startActivity(new android.content.Intent(GameActivity.this, DriverActivity.class)
+                        .putExtra(DriverActivity.EXTRA_PICK, true));
+            }
+        });
+        return 1;
+    }
+
+    /**
+     * The driver page's restart, after a package picked from the warning:
+     * the game in this process starts again (on the driver now chosen), the
+     * same way as the overlay's restart. False when no game is running here.
+     */
+    static boolean restartRunning() {
+        SDLActivity s = mSingleton;
+        if (!(s instanceof GameActivity)) {
+            return false;
+        }
+        ((GameActivity) s).restartApp();
+        return true;
     }
 
     /**
@@ -207,7 +335,7 @@ public class GameActivity extends SDLActivity {
                     }
                 });
             }
-            return "Driver packages... (pick a .zip; the game waits)";
+            return "Driver files... (pick a .zip; the game waits)";
         }
         if (row == 2) {
             if (now.equals(startedWith)) {
@@ -277,9 +405,16 @@ public class GameActivity extends SDLActivity {
         super.onStop();
     }
 
+    // SDL's onDestroy sends SDL_QUIT and waits up to a second for its
+    // thread; the runtime's way out ends the process (exit(0)) once the GPU
+    // is torn down. The watchdog covers a native side that never ends.
     @Override
     protected void onDestroy() {
         stopVibrator();
+        Log.i(TAG, "onDestroy (finishing " + isFinishing() + ")");
+        if (isFinishing()) {
+            armKillWatchdog("onDestroy");
+        }
         super.onDestroy();
     }
 
@@ -323,6 +458,101 @@ public class GameActivity extends SDLActivity {
             }
         });
         immersive();
+        requestDisplayMode();
+        tellGameState();
+    }
+
+    private int displayModeAsked = -1;
+
+    /**
+     * The display's refresh rate is kept where it is, or raised, never
+     * lowered: a 120 Hz panel shows the game's 60 fps with each frame held
+     * twice and less latency than at 60 Hz. The mode asked for is the one at
+     * the current resolution with the highest refresh rate that is a whole
+     * multiple of 60 (60, 120, 180, 240) and not below the current one; a
+     * phone played with a controller alone sees no touches, and some systems
+     * (MIUI) then drop the refresh rate when the app has not asked for one
+     * (BO-148). A panel whose current rate has no such mode (90 Hz) is left
+     * alone. Asked again at every resume. The surface asks for no frame
+     * rate (the toolkit's android_perf.c says why), and the system is told
+     * a game is being played (GameManager.setGameState).
+     */
+    private void requestDisplayMode() {
+        try {
+            android.view.Display d = getDisplay();
+            if (d == null) {
+                return;
+            }
+            android.view.Display.Mode cur = d.getMode();
+            android.view.Display.Mode best = null;
+            for (android.view.Display.Mode m : d.getSupportedModes()) {
+                if (m.getPhysicalWidth() != cur.getPhysicalWidth()
+                        || m.getPhysicalHeight() != cur.getPhysicalHeight()) {
+                    continue;
+                }
+                float hz = m.getRefreshRate();
+                float k = hz / 60.0f;
+                boolean whole = k >= 0.98f && Math.abs(k - Math.round(k)) < 0.02f * Math.round(k);
+                if (!whole || hz < cur.getRefreshRate() - 0.5f) {
+                    continue;
+                }
+                if (best == null || hz > best.getRefreshRate()) {
+                    best = m;
+                }
+            }
+            if (best == null) {
+                if (displayModeAsked != -2) {
+                    displayModeAsked = -2;
+                    Log.i(TAG, "display mode: left as it is (" + cur.getModeId() + " @ "
+                            + String.format(java.util.Locale.ROOT, "%.2f", cur.getRefreshRate())
+                            + " Hz: no mode at a multiple of 60 Hz at or above it)");
+                }
+                return;
+            }
+            android.view.Window w = getWindow();
+            android.view.WindowManager.LayoutParams lp = w.getAttributes();
+            lp.preferredDisplayModeId = best.getModeId();
+            lp.preferredRefreshRate = best.getRefreshRate();
+            w.setAttributes(lp);
+            if (displayModeAsked != best.getModeId()) {
+                displayModeAsked = best.getModeId();
+                StringBuilder all = new StringBuilder();
+                for (android.view.Display.Mode m : d.getSupportedModes()) {
+                    all.append(all.length() > 0 ? ", " : "").append(m.getModeId()).append(':')
+                       .append(m.getPhysicalWidth()).append('x').append(m.getPhysicalHeight())
+                       .append('@').append(String.format(java.util.Locale.ROOT, "%.2f", m.getRefreshRate()));
+                }
+                Log.i(TAG, "display mode: asked for " + best.getModeId() + " ("
+                        + best.getPhysicalWidth() + "x" + best.getPhysicalHeight() + " @ "
+                        + String.format(java.util.Locale.ROOT, "%.2f", best.getRefreshRate())
+                        + " Hz), was " + cur.getModeId() + " @ "
+                        + String.format(java.util.Locale.ROOT, "%.2f", cur.getRefreshRate())
+                        + " Hz; API " + android.os.Build.VERSION.SDK_INT + "; modes " + all);
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "display mode: " + e);
+        }
+    }
+
+    private boolean gameStateSaid;
+
+    /** Gameplay, not loading (API 33): a hint some systems' game modes use. */
+    private void tellGameState() {
+        try {
+            android.app.GameManager gm = getSystemService(android.app.GameManager.class);
+            if (gm == null) {
+                return;
+            }
+            gm.setGameState(new android.app.GameState(false,
+                    android.app.GameState.MODE_GAMEPLAY_UNINTERRUPTIBLE));
+            if (!gameStateSaid) {
+                gameStateSaid = true;
+                Log.i(TAG, "game state: gameplay, uninterruptible (game mode "
+                        + gm.getGameMode() + ")");
+            }
+        } catch (RuntimeException | LinkageError e) {
+            Log.w(TAG, "game state: " + e);
+        }
     }
 
     @Override

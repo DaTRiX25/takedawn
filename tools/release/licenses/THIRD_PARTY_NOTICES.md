@@ -112,7 +112,7 @@ No code was taken for those.
 | [SDL2](https://github.com/libsdl-org/SDL) | 2.32.10 on Windows and Android | zlib | Window, sound and controllers. `SDL2.dll` on Windows, `libSDL2.so` in the Android APK; the Mac app and the AppImage carry sdl2-compat over SDL 3 (below) |
 | SDL's Android activity (`org.libsdl.app`) | with SDL 2.32.10 | zlib | In the Android APK's `classes.dex` |
 | LLVM libc++ (`libc++_shared.so`) | the Android NDK's | Apache-2.0 with LLVM exception | In the Android APK |
-| [Mesa](https://www.mesa3d.org) Turnip (`libvulkan_freedreno.so`) | 26.2.4, built from Mesa's release archive with one fix from Mesa's main branch applied (`tools/android/patches/`) | MIT | The Vulkan driver in the Android APK |
+| [Mesa](https://www.mesa3d.org) Turnip (`libvulkan_freedreno.so`) | 26.2.0-devel git-7fdde2f8f8, whitebelyash's experimental build ([mesa-tu8](https://github.com/whitebelyash/mesa-tu8)), prebuilt, as [UnleashedRecomp-Android v0.6.1](https://github.com/SansNope/UnleashedRecomp-Android/releases/tag/v0.6.1) ships it ("A725 Performance"; driver sha256 87f371a2…b22b0) | MIT | The Vulkan driver in the Android APK |
 | [Qt 6](https://www.qt.io) (Core, Gui, Widgets, DBus and platform plugins) | 6.10.3 | LGPL-3.0 | The setup window. Linked dynamically. The licence texts and a notice that says where Qt's source is and how to replace the libraries are in the package. Qt contains code of other projects, listed in the next table |
 
 ### Inside Qt
@@ -215,7 +215,7 @@ The Android app has one more set, for the parts only it has:
 `Mesa-license.txt` (Mesa's licence page for the Turnip driver) with
 `Mesa-MIT.txt`, `Mesa-Apache-2.0.txt`, `Mesa-BSL-1.0.txt` and
 `Mesa-SGI-B-2.0.txt` (the texts Mesa lists for its files),
-`Mesa-Turnip-SOURCE.txt` (the Mesa release the driver was built from, where to
-get it, and the change made to it) and that change itself,
-`Mesa-Turnip-*-patch.txt`. In the app they are under Licences (the setup page,
+`Mesa-Turnip-SOURCE.txt` (which Mesa build the driver is, where it was taken
+from and its sha256; for a build from Mesa's release, the change made to it,
+then also in `Mesa-Turnip-*-patch.txt`). In the app they are under Licences (the setup page,
 and "Takedawn: graphics driver" in the launcher).

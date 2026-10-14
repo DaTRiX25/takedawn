@@ -9,6 +9,8 @@
 #     adrenotools/  libadrenotools (BSD-2-Clause, a pinned commit): the static
 #                library and its four hook libraries, which load a replacement
 #                GPU driver into the app
+#     turnip-a725/  libvulkan_freedreno.so: the Turnip build the APK carries by
+#                default (prebuilt, see BO-152 below), and its SOURCE.txt
 #     turnip/    libvulkan_freedreno.so: Mesa's Turnip driver for Adreno GPUs
 #                (MIT), built here from Mesa's own release tarball (pinned by
 #                the sha256 of its release notes) the way docs.mesa3d.org's
@@ -155,5 +157,32 @@ CROSS
   printf 'Mesa %s Turnip (freedreno Vulkan, KGSL), built from %s\nsha256 of the tarball: %s\nNDK %s, android-%s\npatches: %s\n' \
     "$MESA_VER" "https://archive.mesa3d.org/$A" "$MESA_SHA256" "$(basename "$NDK")" "$API" "${MESA_PATCHES:-none}" > turnip/SOURCE.txt
   cp mesa-src/docs/license.rst turnip/mesa-license.rst
+fi
+# BO-152: the Turnip the APK carries by default, a prebuilt one. The Mesa
+# 26.2.4 build above hangs the Retroid Pocket 5's Adreno 650 every few
+# minutes in races; this build ran without a hang. It is whitebelyash's
+# experimental Mesa 26.2.0-devel (git-7fdde2f8f8, his gen8 work on
+# https://github.com/whitebelyash/mesa-tu8) as UnleashedRecomp-Android ships it
+# for its "A725 Performance" driver setting, taken out of that app's release
+# APK and checked against the sha256 its driver/README.md gives. Mesa: MIT.
+A725_APK_URL="https://github.com/SansNope/UnleashedRecomp-Android/releases/download/v0.6.1/UnleashedRecomp_0.6.1.apk"
+A725_APK_SHA256=05717f167db907ca0d0f8e45112613c7e24ef0737ecdc5e192a430a047f74c34
+A725_ENTRY=assets/bundled_driver/vulkan.wb26_2_rp_pair_ccu_color_a725.so
+A725_SHA256=87f371a26a4678a092efa0d209be550ccaae0d18c96436aec181d558e53b22b0
+if [ "${BO3_ANDROID_TURNIP:-1}" != 0 ] && [ ! -f turnip-a725/libvulkan_freedreno.so ]; then
+  A=UnleashedRecomp_0.6.1.apk
+  fetch "$A725_APK_URL" "$A"
+  echo "$A725_APK_SHA256  dl/$A" | sha256sum -c - >/dev/null || { echo "turnip-a725: APK checksum mismatch" >&2; exit 1; }
+  mkdir -p turnip-a725
+  unzip -p "dl/$A" "$A725_ENTRY" > turnip-a725/libvulkan_freedreno.so
+  echo "$A725_SHA256  turnip-a725/libvulkan_freedreno.so" | sha256sum -c - >/dev/null \
+    || { rm -f turnip-a725/libvulkan_freedreno.so; echo "turnip-a725: driver checksum mismatch" >&2; exit 1; }
+  cat > turnip-a725/SOURCE.txt <<SRC
+Mesa 26.2.0-devel Turnip (freedreno Vulkan, KGSL), git-7fdde2f8f8: whitebelyash's experimental build (his gen8 work, https://github.com/whitebelyash/mesa-tu8), with a render-pass dependency of CCU_CLEAN_COLOR | WAIT_FOR_ME
+prebuilt, not built here: $A725_ENTRY of $A725_APK_URL (sha256 of the APK $A725_APK_SHA256), where UnleashedRecomp-Android ships it as its "A725 Performance" driver (its driver/README.md)
+sha256 of the driver: $A725_SHA256
+run with TU_DEBUG=sysmem,nobin, as that app does
+licence: MIT (Mesa's docs/license.rst: Mesa-license.txt, Mesa-MIT.txt)
+SRC
 fi
 echo "deps ready in $PREFIX (NDK $(basename "$NDK"), android-$API, $ABI)"

@@ -18,7 +18,9 @@
 #   BO3_KEYSTORE       the signing key (default ~/.android/bo3-debug.keystore,
 #                      made on first use; the same key must sign every build
 #                      or Android refuses the update)
-#   BO3_ANDROID_TURNIP=0  leave the Mesa Turnip driver out of the APK
+#   BO3_ANDROID_TURNIP=0  leave the Turnip driver out of the APK; =mesa: the
+#                      Mesa 26.2.4 build of fetch-deps.sh instead of the
+#                      prebuilt A725 build (the default, BO-152)
 #   DEBUGGABLE=1       mark the app debuggable (run-as, GPU profilers)
 #   STRIP=0            keep libmain.so's symbol table and debug info
 #   SIGN=0             stop at the aligned, unsigned APK
@@ -68,8 +70,11 @@ PLATFORM="$(ls -d "$SDK"/platforms/android-* | sort -V | tail -1)"
 JAR="$PLATFORM/android.jar"
 
 # A replacement GPU driver (docs/android.md, "The GPU driver"): libadrenotools
-# when fetch-deps.sh built it, and the Turnip driver it built, unless
-# BO3_ANDROID_TURNIP=0.
+# when fetch-deps.sh built it, and a Turnip driver, unless BO3_ANDROID_TURNIP=0:
+# the prebuilt A725 build (turnip-a725/, BO-152) by default, the Mesa release
+# fetch-deps.sh built (turnip/) with BO3_ANDROID_TURNIP=mesa.
+TD="$D/turnip-a725"
+[ "${BO3_ANDROID_TURNIP:-1}" = mesa ] && TD="$D/turnip"
 ADRENO=()
 [ -f "$D/adrenotools/lib/libadrenotools.a" ] && ADRENO=(-DXBOXRECOMP_ANDROID_ADRENOTOOLS="$D/adrenotools")
 
@@ -126,13 +131,15 @@ fi
 if [ ${#ADRENO[@]} -gt 0 ]; then
   cp "$HERE/tools/android/licenses/libadrenotools-BSD-2-Clause.txt" \
      "$HERE/tools/android/licenses/linkernsbypass-BSD-2-Clause.txt" "$AL/"
-  if [ "${BO3_ANDROID_TURNIP:-1}" != 0 ] && [ -f "$D/turnip/libvulkan_freedreno.so" ]; then
+  if [ "${BO3_ANDROID_TURNIP:-1}" != 0 ] && [ -f "$TD/libvulkan_freedreno.so" ]; then
     cp "$HERE"/tools/android/licenses/Mesa-*.txt "$AL/"
     # Which Mesa, from where, with which change: the source of the driver.
-    cp "$D/turnip/SOURCE.txt" "$AL/Mesa-Turnip-SOURCE.txt"
-    for p in "$HERE"/tools/android/patches/*.patch; do
-      [ -f "$p" ] && cp "$p" "$AL/Mesa-Turnip-$(basename "$p" .patch)-patch.txt"
-    done
+    cp "$TD/SOURCE.txt" "$AL/Mesa-Turnip-SOURCE.txt"
+    if [ "$TD" = "$D/turnip" ]; then
+      for p in "$HERE"/tools/android/patches/*.patch; do
+        [ -f "$p" ] && cp "$p" "$AL/Mesa-Turnip-$(basename "$p" .patch)-patch.txt"
+      done
+    fi
   fi
 fi
 if [ "${BO3_REQUIRE_LICENSES:-0}" = 1 ]; then
@@ -164,15 +171,20 @@ if [ ${#ADRENO[@]} -gt 0 ]; then
   cp "$D/adrenotools/lib/libhook_impl.so" "$D/adrenotools/lib/libmain_hook.so" \
      "$D/adrenotools/lib/libfile_redirect_hook.so" "$D/adrenotools/lib/libgsl_alloc_hook.so" \
      "$OUT/pack/lib/$ABI/"
-  if [ "${BO3_ANDROID_TURNIP:-1}" != 0 ] && [ -f "$D/turnip/libvulkan_freedreno.so" ]; then
-    cp "$D/turnip/libvulkan_freedreno.so" "$OUT/pack/lib/$ABI/"
-    echo "   with $(head -1 "$D/turnip/SOURCE.txt")"
+  if [ "${BO3_ANDROID_TURNIP:-1}" != 0 ] && [ -f "$TD/libvulkan_freedreno.so" ]; then
+    cp "$TD/libvulkan_freedreno.so" "$OUT/pack/lib/$ABI/"
+    echo "   with $(head -1 "$TD/SOURCE.txt")"
   fi
 fi
 if [ "${STRIP:-1}" != 0 ]; then
   # The dynamic symbol table stays: the crash report names sub_XXXXXXXX
   # from it (dladdr).
-  "$NDK/toolchains/llvm/prebuilt/$HOST_TAG/bin/llvm-strip" --strip-unneeded "$OUT/pack/lib/$ABI/"*.so
+  # The Turnip driver goes in as it is (the prebuilt one is checked by its
+  # sha256; the Mesa build is stripped already).
+  for so in "$OUT/pack/lib/$ABI/"*.so; do
+    [ "$(basename "$so")" = libvulkan_freedreno.so ] && continue
+    "$NDK/toolchains/llvm/prebuilt/$HOST_TAG/bin/llvm-strip" --strip-unneeded "$so"
+  done
 fi
 
 echo "== packing"

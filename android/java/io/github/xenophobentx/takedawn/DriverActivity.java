@@ -27,8 +27,12 @@ import java.util.Map;
  */
 public class DriverActivity extends Activity {
     private static final int PICK = 1;
+    /** From the start-up warning (GameActivity.pickDriverPackage): the file
+     *  picker at once, and the game started again on the package picked. */
+    static final String EXTRA_PICK = "io.github.xenophobentx.takedawn.PICK";
     private LinearLayout box;
     private String message;
+    private boolean restartAfterPick;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -41,7 +45,9 @@ public class DriverActivity extends Activity {
         sv.addView(box);
         setContentView(sv);
         build();
-        // From adb, for a test or a device without a file picker:
+        // From adb, for a test or a device without a file picker (a
+        // debuggable build only: the page is exported, as the launcher's
+        // second entry, so any app could send these):
         //   am start -n <package>/.DriverActivity --es import <file under the app's files folder>
         //   am start -n <package>/.DriverActivity --es choose auto|bundled|system|custom|remove
         handle(getIntent());
@@ -62,8 +68,20 @@ public class DriverActivity extends Activity {
     }
 
     private void handle(Intent intent) {
+        if (intent.getBooleanExtra(EXTRA_PICK, false)) {
+            intent.removeExtra(EXTRA_PICK);
+            restartAfterPick = true;
+            pick();
+            return;
+        }
         String imp = intent.getStringExtra("import");
         String ch = intent.getStringExtra("choose");
+        if ((imp != null || ch != null) && (getApplicationInfo().flags
+                & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            android.util.Log.w(GameActivity.TAG, "driver page: the test extras are for a"
+                    + " debuggable build; ignored");
+            return;
+        }
         if (imp != null) {
             try {
                 java.io.File f = new java.io.File(imp).getCanonicalFile();
@@ -73,13 +91,13 @@ public class DriverActivity extends Activity {
                 }
                 take(new java.io.FileInputStream(f), f.getName());
             } catch (Exception e) {
-                message = imp + " was not taken: " + e.getMessage() + ". Nothing is changed.";
+                message = imp + " wasn't loaded: " + e.getMessage() + ". Nothing changed.";
                 android.util.Log.e(GameActivity.TAG, "driver package " + imp + ": " + e);
                 build();
             }
         } else if ("remove".equals(ch)) {
             GpuDriver.removeCustom(this);
-            message = "The driver package is removed.";
+            message = "Driver file removed.";
             build();
         } else if (ch != null && (ch.equals("auto") || ch.equals("bundled") || ch.equals("system")
                 || (ch.equals("custom") && !GpuDriver.customMeta(this).isEmpty()))) {
@@ -94,19 +112,31 @@ public class DriverActivity extends Activity {
         new Thread(new Runnable() {
             @Override public void run() {
                 String m;
+                boolean ok = false;
                 try (InputStream in = stream) {
                     String got = GpuDriver.importPackage(DriverActivity.this, in, name);
                     GpuDriver.setChoice(DriverActivity.this, "custom");
-                    m = "Driver package \"" + got + "\" is in the app and chosen.";
+                    m = "Driver file \"" + got + "\" loaded and chosen.";
+                    ok = true;
                 } catch (Exception e) {
-                    m = name + " was not taken: " + e.getMessage() + ". Nothing is changed.";
+                    m = name + " wasn't loaded: " + e.getMessage() + ". Nothing changed.";
                 }
                 android.util.Log.i(GameActivity.TAG, "driver package: " + m);
                 final String msg = m;
+                final boolean restart = ok && restartAfterPick;
                 runOnUiThread(new Runnable() {
                     @Override public void run() {
                         message = msg;
                         build();
+                        // Picked from the start-up warning: the game behind
+                        // this page is on the CPU, so it starts again on the
+                        // package at once (on trial: if it shows no frames,
+                        // the next start goes back to the driver in the app).
+                        if (restart && GameActivity.restartRunning()) {
+                            android.util.Log.i(GameActivity.TAG,
+                                    "driver package: the game starts again on it");
+                            finish();
+                        }
                     }
                 });
             }
@@ -165,55 +195,46 @@ public class DriverActivity extends Activity {
             GpuDriver.prefs(this).edit().putString("bundledMesa", last.get("mesa")).apply();
         }
         String mesa = GpuDriver.prefs(this).getString("bundledMesa", null);
-        Button first = button("Automatic: " + GpuDriver.describe(this, "auto"),
-                "auto".equals(ch), new View.OnClickListener() {
+        boolean adreno = GpuDriver.isAdreno();
+        Button first = button("Automatic (recommended): " + GpuDriver.describe(this, "auto"),
+                "auto".equals(ch) || (!adreno && !"system".equals(ch)),
+                new View.OnClickListener() {
                     @Override public void onClick(View v) { choose("auto"); }
                 });
-        if (GpuDriver.hasBundled(this)) {
-            button("Mesa Turnip, in the app" + (mesa != null ? " (Mesa " + mesa + ")" : ""),
+        // Turnip drives Adrenos only: elsewhere the bundled driver and the
+        // packages are not offered (GpuDriver never loads them there).
+        if (GpuDriver.hasBundled(this) && adreno) {
+            button("Built-in Turnip, always" + (mesa != null ? " (Mesa " + mesa + ")" : ""),
                     "bundled".equals(ch), new View.OnClickListener() {
                         @Override public void onClick(View v) { choose("bundled"); }
                     });
         }
         button("This device's driver (Vulkan " + GpuDriver.versionString(sys) + ")"
-                        + (sys < 0x403000 ? ": too old for the game, which then draws on the CPU" : ""),
+                        + (sys < 0x403000 ? ": too old, the game runs on the processor" : ""),
                 "system".equals(ch), new View.OnClickListener() {
                     @Override public void onClick(View v) { choose("system"); }
                 });
-        if (!custom.isEmpty()) {
-            button("Driver package: " + custom.get("name")
-                            + (custom.get("version").isEmpty() ? "" : ", " + custom.get("version"))
-                            + " (" + custom.get("lib") + ")",
+        if (!custom.isEmpty() && adreno) {
+            button("Driver file: " + custom.get("name")
+                            + (custom.get("version").isEmpty() ? "" : ", " + custom.get("version")),
                     "custom".equals(ch), new View.OnClickListener() {
                         @Override public void onClick(View v) { choose("custom"); }
                     });
         }
         text("", 6, Color.BLACK);
-        button("Pick a driver package… (.zip with meta.json, or a .so)", false,
-                new View.OnClickListener() {
-                    @Override public void onClick(View v) {
-                        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                        i.addCategory(Intent.CATEGORY_OPENABLE);
-                        i.setType("*/*");
-                        try {
-                            startActivityForResult(i, PICK);
-                        } catch (Exception e) {
-                            message = "This device has no file picker (" + e.getMessage()
-                                    + "). Copy the package into "
-                                    + GpuDriver.userDir(DriverActivity.this).getAbsolutePath()
-                                    + " instead and choose Automatic.";
-                            build();
-                        }
-                    }
-                }).setText("Pick a driver package… (.zip with meta.json, or a .so)");
+        if (adreno) {
+            button("Load a driver file (.zip)\u2026", false, new View.OnClickListener() {
+                @Override public void onClick(View v) { pick(); }
+            }).setText("Load a driver file (.zip)\u2026");
+        }
         if (!custom.isEmpty()) {
-            button("Remove the driver package", false, new View.OnClickListener() {
+            button("Remove the driver file", false, new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     GpuDriver.removeCustom(DriverActivity.this);
-                    message = "The driver package is removed.";
+                    message = "Driver file removed.";
                     build();
                 }
-            }).setText("Remove the driver package");
+            }).setText("Remove the driver file");
         }
         button("Start the game", false, new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -226,10 +247,38 @@ public class DriverActivity extends Activity {
                 startActivity(new Intent(DriverActivity.this, LicensesActivity.class));
             }
         }).setText("Licences");
-        text("A driver other than the one in the app is on trial at its first start: if the"
-                + " game does not get to its first frames with it, the next start goes back to"
-                + " the driver in the app and says so.", 13, 0xFF909090);
+        // The driver folder (<files>/driver, a developer's way) comes before
+        // the bundled driver under Automatic: said, so it is not a surprise.
+        java.io.File legacy = GpuDriver.userFile(this);
+        if (legacy != null && adreno) {
+            text("Under Automatic, the driver in the app's driver folder (" + legacy.getName()
+                    + ") comes first. Delete it from that folder to use the built-in driver.",
+                    13, 0xFFF0C85A);
+            android.util.Log.i(GameActivity.TAG, "driver page: the driver folder's "
+                    + legacy.getName() + " comes first under Automatic");
+        }
+        text(adreno
+                ? "If the game doesn't reach its first frames with a driver you picked, or the"
+                  + " driver stops working later, the next start goes back to Automatic."
+                : "Driver files work on Adreno graphics only. This device uses its own driver.",
+                13, 0xFF909090);
         first.requestFocus();
+    }
+
+    /** The system's file picker for a driver package (onActivityResult takes it). */
+    private void pick() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        try {
+            startActivityForResult(i, PICK);
+        } catch (Exception e) {
+            message = "This device has no file picker (" + e.getMessage()
+                    + "). Copy the driver file into "
+                    + GpuDriver.userDir(DriverActivity.this).getAbsolutePath()
+                    + " instead and choose Automatic.";
+            build();
+        }
     }
 
     private String displayName(Uri u) {
@@ -251,6 +300,10 @@ public class DriverActivity extends Activity {
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if (request != PICK || result != RESULT_OK || data == null || data.getData() == null) {
+            if (request == PICK && restartAfterPick) {
+                message = "No file picked. Back returns to the game, which runs on the processor.";
+                build();
+            }
             return;
         }
         final Uri u = data.getData();

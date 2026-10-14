@@ -116,10 +116,7 @@ public class SetupActivity extends Activity {
                 startActivity(new Intent(SetupActivity.this, DriverActivity.class));
             }
         });
-        text("The graphics driver: Mesa Turnip, which comes in the app, is the one the game is"
-                + " tested with; this device's own driver or a driver package (.zip) can be"
-                + " chosen instead. A driver that does not get the game to its first frames is"
-                + " dropped for the one in the app at the next start.", 13, 0xFF909090);
+        text("The graphics driver is chosen automatically.", 13, 0xFF909090);
         text("Nothing of the game is in this app: its files come from your own disc. Make an"
                 + " image of it (an .iso from the Xbox or a PC drive that reads Xbox discs)"
                 + " and put the file on this device or its SD card. The image is only read.",
