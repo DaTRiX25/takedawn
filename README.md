@@ -206,8 +206,8 @@ report zip from Advanced > Create bug report helps a lot.
 | Ubuntu 24.04 with AMD integrated graphics (Ryzen 7 5825U) | Tested |
 | Retroid Pocket 5 | Tested |
 | Samsung Galaxy S20 FE (Snapdragon 865) | Runs. A one-hour session had no problems. Slower than the Retroid Pocket 5 once the phone warms up |
-| Poco F4 (Snapdragon 870) | Runs. MIUI can drop the game to 30 fps while you play with a controller and don't touch the screen |
-| Retroid Pocket Classic (Snapdragon G1 Gen 2) | Runs on the bundled Turnip driver (Adreno 613, Vulkan 1.3) |
+| Poco F4 (Snapdragon 870) | Runs, but doesn't hold 60 fps. Always slower than the Retroid Pocket 5 |
+| Retroid Pocket Classic (Snapdragon G1 Gen 2) | Starts, but 30 fps at most, so the game runs slow |
 | Retroid Pocket 6, AYN Odin 2 | Expected to work, not tested. The bundled graphics driver supports their GPU |
 | AYN Odin 3 | Uncertain, not tested. Its GPU is new to the bundled driver and it ships Android 15, which may restrict how the driver is loaded |
 | Steam Deck LCD, other Linux distributions | Not tested |
