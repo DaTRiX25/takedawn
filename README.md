@@ -802,6 +802,9 @@ handled.
 - With Driving controls set to PlayStation 2, Crash mode shows the wrong
   button prompts. The Crashbreaker prompt says B (or Circle), while R2 fires
   it.
+- The loading screen when the game starts stops near the end for up to about
+  15 seconds. The game is waiting for a network the emulated console reports
+  as connected. The next version fixes it.
 
 ## What's next
 
