@@ -807,8 +807,13 @@ handled.
 
 ## What's next
 
+- Touch controls on Android, for playing without a controller. In testing
+  now.
+- HDR output for the Steam Deck OLED, HDR monitors and TVs, and Macs with an
+  HDR screen. The game's own lights, sparks and flames go brighter than
+  white, and the HUD stays as it is. In testing now.
 - Android: more devices (other Snapdragon handhelds, then non-Adreno GPUs
-  with Vulkan 1.3), and touch controls.
+  with Vulkan 1.3).
 - Texture packs: load replacement textures from a folder, for higher
   resolution art and mods.
 - iPad?
