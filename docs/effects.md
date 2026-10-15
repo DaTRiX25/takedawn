@@ -49,6 +49,7 @@ page (`sub_000FAC70`).
 | Setting | Site | The title's condition | Patched to |
 |---|---|---|---|
 | `graphics.bloom` = false | `0x001AE5AA` (stage view), `0x001AEA0D` (garage) | `MEM32(0x4D537C) == -1` before the bloom call | reads 0: the no-bloom path |
+| `graphics.bloom` = false | `0x0003DC3A`, `0x0003DC55` (BO-181) | the bloom Intensity (`[arg+4]`, the block's +0x54) that sets the weight of the bloom's last result in the frame pass | reads 0: weight 0 |
 | `graphics.motion_blur` = false | `0x00042AD5`, `0x001AE678`, `0x000FACD9` | the graphics manager's byte `MEM8(0x4D61D2)` (manager `0x4D6170` + 0x62) | reads 0: the blur-off path |
 
 `0x4D61D2` is one of seventeen on/off bytes the manager's constructor
@@ -63,6 +64,26 @@ The byte loads needed a patch kind, `load_u8` (toolkit
 `tools/recomp/patches.py`); the bloom sites are plain `load_u32`. With both
 settings on, `regen.sh` output differs from the unpatched build by the five
 gated statements only.
+
+## Switching the bloom off while it shows (BO-181)
+
+Skipping the bloom call alone left a glow frozen on the picture. The pass
+that puts the 3D frame on the back buffer, `sub_0003DA90`, runs after the
+bloom call whether the bloom ran or not (it is the one 640x480 draw of six
+indices before the radial blur in `RECOMP_TRACE=metal_frame`). It samples
+the bloom's last 160x120 target (0x00ACC000) and adds it with a weight made
+from the bloom Intensity: clamped, times a constant, handed to the register
+combiners (`sub_0034E9A0`). With the bloom call skipped that target keeps the
+last result drawn, and the frame kept adding it while the world moved under
+it. The title never shows this itself: under its pause menu it skips the
+bloom the same way, but the world stands still there. So the switch also
+makes the Intensity read 0 at the two loads in `sub_0003DA90`; memory keeps
+the real value. Checked (Metal, headless, 3x, paused after boosting, the
+target bound black every 10 flips by a scratch test hook): with the bloom on
+the black target changes 0.03 % of the pixels by up to 10/255 (the stale
+glow); after `graphics.bloom` went off live, 0 pixels. With the bloom on the
+patch returns the loaded value: the picture is the one it was. The patch is
+in the guest code, so the Vulkan and D3D11 backends get the same.
 
 ## Cost, per frame of a one-player stage (Metal, `RECOMP_TRACE=metal_frame`)
 

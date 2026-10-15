@@ -116,6 +116,9 @@ an undistorted HUD, ultrawide, and a settings menu you can open mid-race.
   Android also has 1.5x.
 - The game's own 16:9 mode stretches the HUD by a third. The widescreen HUD
   fix keeps it in its 4:3 shape, at the edges of the screen.
+- Scenery detail: trees and other roadside objects keep their detailed models
+  as far as they are drawn. On the console the pines turn into flat cut-outs
+  at 250 m and pop back to full detail as you get close.
 - Ultrawide at 21:9 and 32:9: races fill the whole width and show more at the
   sides. Menus and films stay 16:9 in the middle.
 - 60 fps, locked to your display's refresh, also on 120 Hz screens.
@@ -475,7 +478,7 @@ The first start uses defaults that suit modern screens:
 
 | | First-start settings |
 |---|---|
-| Mac, Windows, Linux desktop | Full screen, the game's 16:9 mode with the widescreen HUD fix, linear filter, render scale 3, SMAA, sharpening 30%, Menu and HUD upscaling 2x, texture sharpness Auto, vehicle detail Far |
+| Mac, Windows, Linux desktop | Full screen, the game's 16:9 mode with the widescreen HUD fix, linear filter, render scale 3, SMAA, sharpening 30%, Menu and HUD upscaling 2x, texture sharpness Auto, vehicle detail Far, scenery detail Far |
 | Steam Deck, and any machine in a gamescope session | The same, with render scale 2 |
 | Android | Full screen, 16:9 with the widescreen HUD fix, render scale 1.5, FXAA, sharpening 30%, Menu and HUD upscaling 2x |
 
@@ -498,6 +501,7 @@ still in the menu. Everything else that changes the console's look
 | Speed units | mph, km/h | mph, as on the disc. km/h also changes distances to metres. Applies from the next race |
 | Widescreen HUD | On, Off | On. With 16:9, keeps the HUD in its 4:3 shape at the edges of the picture. Applies from the next race |
 | Ultrawide | Off, 21:9, 32:9, Window | Off. Needs Aspect ratio 16:9. Applies from the next race |
+| Score board | Original, Smooth | Original, as on the console. Smooth fades the dark plate behind the score together with its text |
 
 **Graphics**
 
@@ -513,6 +517,7 @@ still in the menu. Everything else that changes the console's look
 | Bloom | On, Off | On, as on the console. The glow over the picture while you boost |
 | Motion blur | On, Off | On, as on the console. The streaks towards the edges at speed |
 | Vehicle detail distance | Original, Far (2x), Farthest (4x) | Far, Original on Android. How far away rival cars and traffic keep their detailed models. It does not change scenery or where traffic appears |
+| Scenery detail | Original, Far | Far, Original on Android. How far away trees and other roadside objects keep their detailed models. On Original the pines turn into flat cut-outs at 250 m; on Far they stay detailed as far as they are drawn |
 | 60 fps crash cameras | On, Off | Off. The console drops to 30 in crash and takedown cameras. Needs a fast machine |
 | 60 fps split screen | On, Off | Off. Two-player races at 60 instead of 30. Needs a fast machine; leave it off on a handheld |
 | Build shaders now | action | See [the shader pre-build](#the-shader-pre-build). Not on Android |
@@ -549,7 +554,7 @@ of the picture.
 
 | Row | Choices | Default and notes |
 |---|---|---|
-| Power mode | Balanced, Battery saver; on a Mac also Maximum | Balanced. Battery saver uses less power and can show an occasional small dip |
+| Power mode | Balanced, Battery saver, Auto; on a Mac also Maximum | Balanced. Battery saver uses less power and can show an occasional small dip. Auto watches the frame times and only works harder when frames start to arrive late |
 
 Maximum busy-waits all the time. In measurements it was no steadier than
 Balanced on the Steam Deck and the Mac and worse on Windows. It also uses more
@@ -799,8 +804,6 @@ handled.
 - With Driving controls set to PlayStation 2, Crash mode shows the wrong
   button prompts. The Crashbreaker prompt says B (or Circle), while R2 fires
   it.
-- Loading screen might wait a bit too much at gamestart... will fix
-- The Android APK doesn't have the loading wait.
 
 ## What's next
 

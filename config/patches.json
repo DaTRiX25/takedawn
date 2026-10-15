@@ -1,5 +1,5 @@
 {
-  "about": "Opt-in guest patches (tools.recomp --patches, regen.sh). After each listed load (or store) the generated code calls RECOMP_PATCH_U32 / RECOMP_PATCH_F32, which keeps the title's value unless the setting reads 'when' (src/game/main.c enables game.speed_units: RECOMP_SPEED_UNITS=kmh, BO-79; and display.hud_fix: RECOMP_GFX_HUD_FIX=1, BO-89; both on the overlay's Display page and in settings.toml). The display.hud_fix values are expressions of 'aspect' (16/9 or 4/3, the picture the title was set up for): W = 480*aspect is the 640x480 layout's width at the picture's true shape, (640 - W)/2 its left edge, s = (4/3)/aspect the squeeze that undoes the anamorphic stretch; 'vis_x0' / 'vis_x1' are the frame columns the window shows of the picture as presented (the presenter's overscan crop and 16:10 fill), 'ref_x0' / 'ref_x1' those a 4:3 picture shows in the same window: the HUD's margins are kept from the visible edges at what they are in 4:3. The arithmetic (layout width 480*aspect, offset (640 - width)/2, HUD origin 320*(1 - s)) is that of the PS2 widescreen fix: ThirteenAG/WidescreenFixesPack, source/Burnout3.PCSX2F.WidescreenFix (MIT licence); the Xbox sites were found in this build, with Nahelam's PS2 symbol list (PS2-Game-Mods, Burnout 3 Takedown/Research/SLES_525.85.txt) as the guide to the names. display.ultrawide (RECOMP_DISPLAY_ULTRAWIDE=21:9|32:9|window, BO-94): the camera's aspect and field-of-view factor and the marks that tell the host a stage is set up, drew a frame, and a frame ended; 'aspect' is then the stage's wide aspect, 'frame_aspect' the shown frame's, 'fe_squeeze' the factor that keeps the front-end scene's 16:9 shape over a wide frame. graphics.bloom and graphics.motion_blur (RECOMP_GFX_BLOOM=0, RECOMP_GFX_MOTION_BLUR=0, BO-101; overlay Graphics page): the title's own bloom and blur, on as shipped; at \"0\" the title's own conditions for drawing them read false (docs/effects.md). graphics.vehicle_detail (RECOMP_GFX_VEHICLE_DETAIL=far|farthest, BO-112; overlay Graphics page): the distances at which the title swaps a vehicle's model for a simpler one, times 'vehicle_lod_scale' (2 or 4); as shipped at 'original' (docs/draw-distance.md). graphics.crash_60fps (RECOMP_GFX_CRASH_60FPS=1, BO-111; overlay Graphics page): the title's 30 Hz phases, the crash and takedown cameras, at 60: where a one-player stage's update chooses the rate, its 'a crash camera is on' byte reads 0 and the title takes its own full-rate path (docs/crash60.md); off as shipped. graphics.split_60fps (RECOMP_GFX_SPLIT_60FPS=1, BO-116; overlay Graphics page): two-player split screen, which the title runs at its half rate from the stage's set-up to its end, at 60: the request the set-up stores is stored as 0 (docs/split-screen.md); off as shipped. audio.split_music (RECOMP_AUDIO_SPLIT_MUSIC=1, BO-116; overlay Audio page): the title's music manager keeps EA GAMES TRAX silent while more than one player plays; where it compares the player count for that, the count reads 1 (docs/split-screen.md); off as shipped, and off the audio path is the title's own.",
+  "about": "Opt-in guest patches (tools.recomp --patches, regen.sh). After each listed load (or store) the generated code calls RECOMP_PATCH_U32 / RECOMP_PATCH_F32, which keeps the title's value unless the setting reads 'when' (src/game/main.c enables game.speed_units: RECOMP_SPEED_UNITS=kmh, BO-79; and display.hud_fix: RECOMP_GFX_HUD_FIX=1, BO-89; both on the overlay's Display page and in settings.toml). The display.hud_fix values are expressions of 'aspect' (16/9 or 4/3, the picture the title was set up for): W = 480*aspect is the 640x480 layout's width at the picture's true shape, (640 - W)/2 its left edge, s = (4/3)/aspect the squeeze that undoes the anamorphic stretch; 'vis_x0' / 'vis_x1' are the frame columns the window shows of the picture as presented (the presenter's overscan crop and 16:10 fill), 'ref_x0' / 'ref_x1' those a 4:3 picture shows in the same window: the HUD's margins are kept from the visible edges at what they are in 4:3. The arithmetic (layout width 480*aspect, offset (640 - width)/2, HUD origin 320*(1 - s)) is that of the PS2 widescreen fix: ThirteenAG/WidescreenFixesPack, source/Burnout3.PCSX2F.WidescreenFix (MIT licence); the Xbox sites were found in this build, with Nahelam's PS2 symbol list (PS2-Game-Mods, Burnout 3 Takedown/Research/SLES_525.85.txt) as the guide to the names. display.ultrawide (RECOMP_DISPLAY_ULTRAWIDE=21:9|32:9|window, BO-94): the camera's aspect and field-of-view factor and the marks that tell the host a stage is set up, drew a frame, and a frame ended; 'aspect' is then the stage's wide aspect, 'frame_aspect' the shown frame's, 'fe_squeeze' the factor that keeps the front-end scene's 16:9 shape over a wide frame. graphics.bloom and graphics.motion_blur (RECOMP_GFX_BLOOM=0, RECOMP_GFX_MOTION_BLUR=0, BO-101; overlay Graphics page): the title's own bloom and blur, on as shipped; at \"0\" the title's own conditions for drawing them read false (docs/effects.md). graphics.vehicle_detail (RECOMP_GFX_VEHICLE_DETAIL=far|farthest, BO-112; overlay Graphics page): the distances at which the title swaps a vehicle's model for a simpler one, times 'vehicle_lod_scale' (2 or 4); as shipped at 'original' (docs/draw-distance.md). graphics.scenery_detail (RECOMP_GFX_SCENERY_DETAIL=far, BO-177; overlay Graphics page): the distance at which a track prop with two models (the pine trees above all) swaps its detailed model for its simple one, times 'scenery_lod_scale'; as shipped at 'original' (docs/draw-distance.md). graphics.crash_60fps (RECOMP_GFX_CRASH_60FPS=1, BO-111; overlay Graphics page): the title's 30 Hz phases, the crash and takedown cameras, at 60: where a one-player stage's update chooses the rate, its 'a crash camera is on' byte reads 0 and the title takes its own full-rate path (docs/crash60.md); off as shipped. graphics.split_60fps (RECOMP_GFX_SPLIT_60FPS=1, BO-116; overlay Graphics page): two-player split screen, which the title runs at its half rate from the stage's set-up to its end, at 60: the request the set-up stores is stored as 0 (docs/split-screen.md); off as shipped. audio.split_music (RECOMP_AUDIO_SPLIT_MUSIC=1, BO-116; overlay Audio page): the title's music manager keeps EA GAMES TRAX silent while more than one player plays; where it compares the player count for that, the count reads 1 (docs/split-screen.md); off as shipped, and off the audio path is the title's own.",
   "patches": [
     {
       "va": "0x00059BF7",
@@ -718,6 +718,22 @@
       "note": "sub_001AE6F0, the front end's view of the world (the garage / car select): the same test before the same bloom call."
     },
     {
+      "va": "0x0003DC3A",
+      "kind": "load_f32",
+      "setting": "graphics.bloom",
+      "when": "0",
+      "expr": "0",
+      "note": "BO-181: sub_0003DA90, the pass that puts the 3D frame on the back buffer after the bloom call (it runs whether the bloom ran or not), adds the bloom's last 160x120 result with a weight made from the bloom Intensity ([arg+4], the block's +0x54: clamped, times a constant, handed to the combiners). With graphics.bloom off the bloom call is skipped (0x001AE5AA), so that target keeps the last glow drawn and the frame went on adding it: a glow frozen on the picture. Here and at 0x0003DC55 the Intensity reads 0, so the weight is 0; memory keeps the real value. With the bloom on nothing changes."
+    },
+    {
+      "va": "0x0003DC55",
+      "kind": "load_f32",
+      "setting": "graphics.bloom",
+      "when": "0",
+      "expr": "0",
+      "note": "BO-181: the second load of the same Intensity in sub_0003DA90 (the path below the clamp); see 0x0003DC3A."
+    },
+    {
       "va": "0x00042AD5",
       "kind": "load_u8",
       "setting": "graphics.motion_blur",
@@ -780,6 +796,22 @@
       "when": "!original",
       "expr": "loaded * vehicle_lod_scale",
       "note": "sub_001A4710: MEM32F(0x4D61E4) = 20 m; beyond it level 1, within it level 2 (the full model)."
+    },
+    {
+      "va": "0x001ADE86",
+      "kind": "load_f32",
+      "setting": "graphics.scenery_detail",
+      "when": "!original",
+      "expr": "loaded * scenery_lod_scale",
+      "note": "sub_001ADD60, the track's props for one view (pine trees, signs, barriers...; each prop type a 0x70-byte record in the static track's table, MEM32(0x7397B4) + 0x38, count + 0x34): a type with two models (flag +0x62 bit 0) draws its detailed one (+0x5C) where the camera is within its switch distance (+0x64, this load) and its simple one (+0x5E) beyond it, both up to its draw distance (+0x68); sub_0003A740 stores the squares in the draw context 0x549E50 (+0xD0, +0xD4), sub_0003A840 compares (mode 1 here: within). Both models are in the static track, resident for the whole race: no streaming. This load is the detailed model's pass."
+    },
+    {
+      "va": "0x001AE00F",
+      "kind": "load_f32",
+      "setting": "graphics.scenery_detail",
+      "when": "!original",
+      "expr": "loaded * scenery_lod_scale",
+      "note": "sub_001ADD60: the same switch distance (+0x64) for the simple model's pass (mode 2: beyond). Scaled with the load at 0x1ADE86, so each prop is drawn with exactly one of its two models; a switch distance past the draw distance (+0x68, not changed) leaves the detailed model to the end. Not changed: the track units' full / low-detail streams (sub_0019D100, 4 units), the mode-0 props (sub_001ACE00, the reflections in sub_001ADA40)."
     },
     {
       "va": "0x0018C511",

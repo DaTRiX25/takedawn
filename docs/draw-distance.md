@@ -16,7 +16,7 @@ fits. `view` is the per-player view object (`0x7397C8 + player * 0x1CC`).
 |---|---|---|---|
 | Track, buildings, mid scenery, props | A list per track unit in the track data: for the unit the camera is in, 17 entries (stride 0xA9 from +0x12A) naming the units to draw by their offset from it, and for each a chain of mesh indices per material (+0x12D, next index at mesh +0x8C). Units within 4 of the camera's use the fully streamed unit (ring `view+0x154`, `view+8` long), further ones the low-detail stream (ring `view+0x17C`, `view+0xC` long). Then a frustum test per unit and mesh | `sub_0019D100` (fills the 17 slots, PS2 `CB3StreamedTrack::UpdateStreamPVS`), `sub_001AD6B0`, `sub_001AD510`, `sub_001AD7A0` (draw) | No: precomputed visibility in `streamed.dat`, and the streaming window the 64 MB console could hold. The "4" at `0x19D244` is in the executable, but the units beyond it are not in memory at full detail |
 | Far scenery, backdrop (render flag 1, `0x4D61C5`) | The same unit record: up to 8 group indices at +0x74 into the static track's groups, and a backdrop pair at +0x7E / +0x7F | `sub_001AD7A0` at `0x1AD970`, `sub_001AD050`, `sub_001AD120` | No: data. The flag only switches the layer off |
-| Props' own detail levels | Two distances in each prop type's record (+0xD0, +0xD4) | `sub_0003A840` at `0x3A921` | No: asset data |
+| Props changing model (pine trees, signs, barriers) | Each prop type's 0x70-byte record in the static track (`MEM32(0x7397B4)` + 0x38, count + 0x34): a type with two models (+0x62 bit 0) draws its detailed one (+0x5C) within its switch distance (+0x64) and its simple one (+0x5E) beyond, both up to its draw distance (+0x68); `sub_0003A740` puts the squares in the draw context `0x549E50` (+0xD0, +0xD4), `sub_0003A840` compares per instance | `sub_001ADD60` at `0x1ADE86` (detailed pass) and `0x1AE00F` (simple pass) | **Yes** (`graphics.scenery_detail`): both models are in the static track, resident all race |
 | Camera far plane, depth range | near 0.5, far 10000 for the three cameras (`RwCameraSetNearClipPlane` / `SetFarClipPlane`: `sub_001D92A0`, `sub_001D9360`) | `sub_0002ECC0` at `0x2EDAE`, `0x2EDCC` | Not the limit: nothing is drawn near 10 km. The car's reflection cube uses 0.1 to 200 m (`sub_0003FA20` at `0x3FC06`) |
 | Rival cars changing model | Distance from the camera against three floats of the graphics manager, times the camera's factor (+0x90, 1.0): within 15 m level 3 (full), to 30 m level 2, to 60 m level 1, beyond level 0 | `sub_0018DE00` (`CB3RaceCar::Draw`); values `0x4D61D8`, `0x4D61DC`, `0x4D61E0`, set by `sub_00017450` at `0x176BB` (`CB3GraphicsManagerBase::SetDefaultLODSwitchDistances`) | **Yes** |
 | Traffic changing model | The same way: within 20 m level 2, to 80 m level 1, beyond level 0 | `sub_001A4710` (`CB3TrafficSystem::Draw`); values `0x4D61E4`, `0x4D61E8` | **Yes** |
@@ -54,8 +54,42 @@ the full model is what the start grid already draws. Live, from the next
 frame. With the setting at `original` the generated code differs from the
 unpatched build by the five gated statements.
 
-What it does not do: scenery, track, props, traffic appearing, shadows.
+What it does not do: scenery, track, props, traffic appearing, shadows
+(props: `graphics.scenery_detail`, below).
 "Draw distance" would be the wrong name for it.
+
+## `graphics.scenery_detail` (BO-177)
+
+Overlay Graphics page, "Scenery detail"; `settings.toml` `[graphics]
+scenery_detail = "original" | "far"`; `RECOMP_GFX_SCENERY_DETAIL`. Default
+`original` everywhere.
+
+The pine trees that change shape as the car comes round a bend are track
+props with two models, not the track units' streams: at Silver Lake
+(C3_V1) the pines are two prop types (26 and 28 of the track's 32) with
+model 159 within 250 m and model 144, a flat dark silhouette, beyond it, up
+to 1000 m. `far` multiplies every prop type's switch distance by 4 (two
+`load_f32` patches, `loaded * scenery_lod_scale`, after the loads at
+`0x1ADE86` and `0x1AE00F`, the same distance for the two passes, so each
+instance is drawn with exactly one model). At Silver Lake 250 m becomes
+1000 m, the pines' own draw distance: they keep the detailed model as long
+as they are drawn. Other tracks' switch distances are 50 to 300 m with draw
+distances of 100 to 1000 m (the first USA track: palms 70 m of 500 to
+1000). Nothing is streamed: the models are in the static track. The draw
+distances, the props without two models, the reflections pass
+(`sub_001ADA40`) and the track units' full / low-detail choice
+(`sub_0019D100`, 4 units, data the streaming window holds) are not
+touched. With the setting at `original` the generated code differs from the
+unpatched build by the two gated statements. Live, from the next frame.
+
+Measured (Metal, this Mac, 640x480 frame dumps, `tools/headless/scenery_crash.sh`
+and `scenery_scene.sh`, `scenery_report.py`): draw calls equal (the same
+instances, another model), indices +16 % under the Silver Lake junction's
+captions (340514 / 395108), +14.5 % on the run-up, +11.5 % in the crash
+camera; on the first USA track +8.5 % paused, +3.1 % on a 60 s drive; on
+the city track (C5_V1) +7 % paused, +10.6 % driving. Under the captions
+(world standing) 0.21 % of the pixels change, all of them pine trees on the
+hillside; original against original again: none.
 
 ## Measured (Metal, this Mac, 4:3; `tools/headless/draw_scene.sh`, `draw_report.py`)
 

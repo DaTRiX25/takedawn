@@ -189,6 +189,13 @@ void bo3_menu_entry_start(void);
 /* A or START leaving a training film (tutorial.c). */
 void bo3_tutorial_start(void);
 
+/* display.score_board: the score board of a race's HUD as shipped or
+ * fading as one (scoreboard.c, BO-165). render and flip are called from
+ * main.c's uw_stage_render and uw_flip marks. */
+void bo3_score_board_start(uint32_t (*flips)(void));
+void bo3_score_board_render(void);
+void bo3_score_board_flip(void);
+
 /* The overlay's Unlock everything, for the session only (unlockall.c, BO-131). */
 void bo3_unlock_all_start(void);
 

@@ -21,9 +21,11 @@ if(ANDROID)
         autopilot.c
         menuentry.c
         tutorial.c
+        scoreboard.c
         unlockall.c
         glyphs.c
         soundtrack.c
+        dsound_notify.c
     mixer.c
     gp_image.c
         recomp/recomp_manual.c
@@ -45,10 +47,12 @@ add_executable(burnout3
     autopilot.c
     menuentry.c
     tutorial.c
+    scoreboard.c
     unlockall.c
     glyphs.c
     shaderbuild.c
     soundtrack.c
+    dsound_notify.c
     mixer.c
     gp_image.c
     recomp/recomp_manual.c

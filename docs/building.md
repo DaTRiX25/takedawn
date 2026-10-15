@@ -43,7 +43,7 @@ built from:
 ```sh
 git clone https://github.com/xenophobentx/takedawn
 git clone -b takedawn https://github.com/xenophobentx/xboxrecomp
-git -C xboxrecomp checkout takedawn-0.1.0   # the toolkit of release 0.1.0
+git -C xboxrecomp checkout takedawn-0.1.1   # the toolkit of release 0.1.1
 ```
 
 ## Translate and build

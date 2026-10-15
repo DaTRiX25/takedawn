@@ -102,6 +102,14 @@ void sub_0030211F(void) { bo3_soundtrack_create_decoder(sub_0030211F_gen); }
  * TRAX's 44-entry table (BO-120). */
 void sub_001537C0(void) { bo3_soundtrack_start_track(sub_001537C0_gen); }
 
+/* DirectSound's "voice done" (BO-173, ../dsound_notify.c): a voice whose
+ * done notification still waits for the DPC is not queued twice. */
+#include "../dsound_notify.h"
+
+extern void sub_002FAAEF_gen(void);
+
+void sub_002FAAEF(void) { bo3_dsound_voice_done(sub_002FAAEF_gen); }
+
 recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
 {
     /*

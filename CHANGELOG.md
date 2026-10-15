@@ -4,6 +4,43 @@ What changed in each release of Takedawn, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Major releases carry
 a codename, a song title from the game's soundtrack.
 
+## 0.1.1 "Lazy Generation"
+
+A fix and polish release. Saves and settings from 0.1.0 carry over.
+
+### Added
+
+- Power mode Auto. It watches how early each frame is ready and keeps the
+  processor busy only when frames start to arrive late. When the game runs
+  easily, it uses less power than Balanced.
+- Scenery detail: Original or Far. On Original the pines switch to flat
+  cut-outs at 250 m. On Far, trees and other roadside objects keep their
+  detailed models as far as they are drawn. Far is the default on desktops
+  and the Steam Deck, Original on Android.
+- Score board: Original or Smooth. Smooth fades the dark plate behind the
+  score together with its text.
+- A hang report now also saves the game's memory, so a freeze can be traced
+  back to its cause.
+
+### Changed
+
+- Fences, palms and other cut-out textures keep their density at a distance
+  with Metal and Vulkan. Chain-link fences no longer turn into grey walls,
+  and thin railings no longer disappear.
+
+### Fixed
+
+- A rare freeze after a long session, where the picture stopped and the game
+  had to be closed. It came from the game's sound code being run later than
+  on the console.
+- The wait at the first loading screen on Mac, Windows and Linux.
+- The LED signs above tunnels lost some of their letters for a frame now and
+  then.
+- Switching Bloom off while the glow was on screen left that glow frozen on
+  the picture.
+- The rows of the settings menu no longer jump when the hint text below them
+  changes length.
+
 ## 0.1.0 "Lazy Generation"
 
 The first release. Takedawn runs the original Xbox version of *Burnout 3:

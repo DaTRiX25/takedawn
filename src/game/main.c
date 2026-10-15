@@ -72,7 +72,9 @@ extern void xbox_InputPanicStop(int wait_ms);
 #include "glyphs.h"                   /* the button prompts for the pad in use (BO-107) */
 #include "soundtrack.h"               /* custom music (BO-108) */
 #include "mixer.h"                    /* the host mixer (BO-114) */
+#include "dsound_notify.h"            /* the DirectSound done-list guard (BO-173) */
 #include "gp_image.h"                 /* the GP effects image (BO-119) */
+#include "nv2a_texrep.h"              /* the LED sign decals' depth offset (BO-176) */
 #if defined(__has_include)
 #  if __has_include("platform/recomp_restart.h")
 #    include "platform/recomp_restart.h"    /* the overlay's "Restart game" (BO-124) */
@@ -241,6 +243,26 @@ static int host_is_gamescope(void)
     return 0;
 }
 #endif
+
+/* BO-176: the LED accident signs over the US tunnels (Silver Lake's
+ * REDUCE / SPEED and the like) are a quad with the words, "Chgo_AccidentSign_
+ * Words" or "_Words2", drawn about 4 cm in front of the sign's dark dot board
+ * (9977adbbcd40a47d), depth test LEQUAL. The title draws with w-buffering
+ * on (SET_CONTROL0 bit 16), where that lead is plenty; the host's z-buffer
+ * takes the title's screen-space z, whose float32 noise at a distance is
+ * about as large as the lead, so on some frames parts of the words or all of
+ * them fell behind the board. Their draws take a constant depth offset
+ * toward the eye: 512 units of the 24-bit range, a few hundred more than
+ * that noise and, at 60 m, about 20 cm. The same two textures (same bytes)
+ * are in every US city, coast and mountain track. */
+static void bo3_led_signs_init(void)
+{
+    static const struct nv2a_texrep_zbias k_signs[] = {
+        { "Chgo_AccidentSign_Words",  0xb993baaf1f3b5af5ull, 0x0C, 128, 128, -512.0f },
+        { "Chgo_AccidentSign_Words2", 0xdf22c82ff01643bcull, 0x0C, 128, 128, -512.0f },
+    };
+    nv2a_texrep_register_zbias(k_signs, sizeof k_signs / sizeof k_signs[0]);
+}
 
 /* Set a default for a runtime variable, leaving one the user set alone. The
  * settings overlay's file (settings.toml) is applied to the environment
@@ -796,6 +818,48 @@ static double vehicle_lod_scale(void)
     return 1.0;
 }
 
+/* graphics.scenery_detail (RECOMP_GFX_SCENERY_DETAIL, BO-177): the factor on
+ * the switch distance of the track's props with two models (pine trees above
+ * all), read by the patches' expression ("loaded * scenery_lod_scale",
+ * config/patches.json) while the setting is "far". docs/draw-distance.md. */
+#define SCENERY_FAR_SCALE 4.0
+static double scenery_lod_scale(void)
+{
+    const char *v = recomp_env(RENV_GFX_SCENERY_DETAIL);
+
+    return (v && !strcmp(v, "far")) ? SCENERY_FAR_SCALE : 1.0;
+}
+
+/* The prop types of the track in play (MEM32(0x7397B4): + 0x34 the count,
+ * + 0x38 the 0x70-byte records), one line each: the models (+0x5C detailed,
+ * +0x5E simple, +0x60), the flags (+0x62; bit 0: two models), the switch
+ * and draw distances (+0x64, +0x68). For BO3_FX_AT "sdetail". */
+static void scenery_props_dump(void)
+{
+    uint32_t trk, tab;
+    int n, i;
+
+    if (!g_xbox_mem_offset || !(trk = HD_M32(0x7397B4)))
+        return;
+    n = *(const int16_t *)((uintptr_t)g_xbox_mem_offset + trk + 0x34);
+    tab = HD_M32(trk + 0x38);
+    for (i = 0; i < n && tab; i++) {
+        uint32_t r = tab + (uint32_t)i * 0x70;
+        const uint8_t *b = (const uint8_t *)((uintptr_t)g_xbox_mem_offset + r);
+        char name[33];
+        int k;
+
+        for (k = 0; k < 32 && b[k] >= 0x20 && b[k] < 0x7F; k++)
+            name[k] = (char)b[k];
+        name[k] = 0;
+        fprintf(stderr, "BO3_FX_AT: prop %3d models %d/%d/%d flags 0x%02X"
+                " switch %.1f draw %.1f +6C %.1f '%s'\n", i,
+                *(const int16_t *)(b + 0x5C), *(const int16_t *)(b + 0x5E),
+                *(const int16_t *)(b + 0x60), b[0x62],
+                HD_MF(r + 0x64), HD_MF(r + 0x68), HD_MF(r + 0x6C), name);
+    }
+}
+
 /* BO3_FX_AT=<file>: a test aid for the two effect switches (BO-101,
  * docs/effects.md) and the crash camera rate (BO-111, docs/crash60.md).
  * Lines appended to the file, "<flip> bloom|blur|crash60 0|1" in
@@ -854,6 +918,25 @@ static void fx_at_flip(uint32_t flip)
                     g_xbox_mem_offset ? HD_MF(0x4D61E0) : 0.0f,
                     g_xbox_mem_offset ? HD_MF(0x4D61E4) : 0.0f,
                     g_xbox_mem_offset ? HD_MF(0x4D61E8) : 0.0f);
+            continue;
+        }
+        if (!strcmp(what, "sdetail")) {
+            /* "<flip> sdetail 0|1": graphics.scenery_detail (BO-177,
+             * docs/draw-distance.md); the first one lists the track's
+             * prop types. */
+            static int dumped;
+            static const char *const k[] = { "original", "far" };
+            if (v < 0 || v > 1)
+                continue;
+#ifdef XBOXRECOMP_HAVE_OVERLAY
+            xbox_SettingSet(XS_GRAPHICS_SCENERY_DETAIL, v);
+#else
+            recomp_env_set(RENV_GFX_SCENERY_DETAIL, k[v]);
+#endif
+            fprintf(stderr, "BO3_FX_AT: flip %u, graphics.scenery_detail = %s"
+                    " (x%.0f)\n", flip, k[v], scenery_lod_scale());
+            if (!dumped++)
+                scenery_props_dump();
             continue;
         }
         if (!blur && strcmp(what, "bloom"))
@@ -1690,6 +1773,7 @@ static int host_main(void)
         extern const char *xbox_SettingsPath(void);
         bo3_mixer_init(BO3_GAME_DIR, xbox_SettingsPath(), s_save_dir);
     }
+    bo3_dsound_notify_init();           /* BO-173: the done-list guard */
     xbox_kernel_bridge_init();
 
     g_esp = XBOX_STACK_TOP;
@@ -1873,6 +1957,8 @@ static void uw_fe_setup(void)
 static void uw_stage_render(void)
 {
     s_uw_frame = s_uw_stage;
+    /* display.score_board (scoreboard.c, BO-165): before the HUD is drawn. */
+    bo3_score_board_render();
 }
 
 static void uw_flip(void)
@@ -1893,6 +1979,7 @@ static void uw_flip(void)
         fprintf(stderr, "UW: flip %u %s\n", n, a > 0.0f ? "wide" : "16:9");
     s_uw_ring[n % UW_RING] = a;
     s_uw_flips = n;
+    bo3_score_board_flip();
     pace_log(n);
     /* The simulation steps this frame ran (the stepper's count, +0x2E20C:
      * see BO3_PACE_LOG), for the overlay's frame-time graph: a frame of two
@@ -2719,6 +2806,13 @@ int main(int argc, char **argv)
      * docs/draw-distance.md. */
     recomp_patch_set_var_fn("vehicle_lod_scale", vehicle_lod_scale);
     recomp_patch_enable("graphics.vehicle_detail", RENV_GFX_VEHICLE_DETAIL);
+    /* BO-177: the distance at which a track prop with two models (the pine
+     * trees above all) swaps its detailed model for its simple one, times
+     * SCENERY_FAR_SCALE at graphics.scenery_detail = far
+     * (RECOMP_GFX_SCENERY_DETAIL); as shipped at "original".
+     * docs/draw-distance.md. */
+    recomp_patch_set_var_fn("scenery_lod_scale", scenery_lod_scale);
+    recomp_patch_enable("graphics.scenery_detail", RENV_GFX_SCENERY_DETAIL);
     recomp_patch_on_mark("uw_stage_setup", uw_stage_setup);
     recomp_patch_on_mark("uw_fe_setup", uw_fe_setup);
     recomp_patch_on_mark("uw_stage_render", uw_stage_render);
@@ -2736,6 +2830,8 @@ int main(int argc, char **argv)
     bo3_menu_entry_start();
     /* A or START leaves a training film (tutorial.c). */
     bo3_tutorial_start();
+    /* BO-165: display.score_board (scoreboard.c). */
+    bo3_score_board_start(bo3_flips);
     /* The defaults go in before anything reads the environment: the runtime
      * reads it once, at the first lookup.
      *
@@ -2813,6 +2909,7 @@ int main(int argc, char **argv)
             env_default("RECOMP_GFX_UI_SCALE", "2x");
             env_default("RECOMP_GFX_LOD_BIAS", "auto");
             env_default("RECOMP_GFX_VEHICLE_DETAIL", "far");
+            env_default("RECOMP_GFX_SCENERY_DETAIL", "far");
         }
 #if defined(BO3_RELEASE_BUILD)
         else {
@@ -2826,6 +2923,7 @@ int main(int argc, char **argv)
             env_default("RECOMP_GFX_UI_SCALE", "2x");
             env_default("RECOMP_GFX_LOD_BIAS", "auto");
             env_default("RECOMP_GFX_VEHICLE_DETAIL", "far");
+            env_default("RECOMP_GFX_SCENERY_DETAIL", "far");
         }
 #endif
     }
@@ -2941,6 +3039,7 @@ int main(int argc, char **argv)
 #endif
     host_enhance_init();
     bo3_glyphs_init();                  /* input.glyphs: the prompts for the pad in use */
+    bo3_led_signs_init();               /* the tunnel LED signs stay lit (BO-176) */
     if (bug_report) {
 #if defined(BO3_HAVE_BUG_REPORT)
         return host_bug_report_cli();
