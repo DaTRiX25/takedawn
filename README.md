@@ -408,6 +408,12 @@ I test the Android build on a Retroid Pocket 5. The [Devices](#devices) list has
    touch controls. To open the settings press Back and Start together, which
    is Select and Start on a Retroid Pocket.
 
+<p align="center">
+  <img src="docs/screenshots/takedawn-14-android-touch-poco-f4.jpg" alt="A race on a Poco F4 phone at its full 20:9 width: a mountain road with pine trees, on-screen steering stick at the left and GAS, BRAKE, BOOST, BREAKER, LOOK and VIEW buttons at the right" width="100%">
+  <br>
+  <sub>Touch controls on a Poco F4. In testing, not in the current release.</sub>
+</p>
+
 The game needs Vulkan 1.3. Most Snapdragon devices ship a driver that offers
 less, so the APK bundles Mesa's open-source Turnip driver
 and loads it inside the app. It changes nothing outside the app and needs no
