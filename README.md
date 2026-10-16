@@ -807,6 +807,14 @@ handled.
 
 ## Known issues
 
+- On Windows with G-Sync or FreeSync on, frame times are uneven and the game can
+  run slightly fast. A fix is in progress. Until then, turn variable refresh off
+  for Takedawn.exe (NVIDIA Control Panel: Monitor Technology, Fixed Refresh; AMD
+  Software: FreeSync off in the game's profile), or set the environment variable
+  `RECOMP_VBLANK_SYNC=off`.
+- Diagnostic logging that is switched on in the settings is not active at the
+  next start. Switch it off and on again in the running game before you make a
+  bug report.
 - With Driving controls set to PlayStation 2, Crash mode shows the wrong
   button prompts. The Crashbreaker prompt says B (or Circle), while R2 fires
   it.
