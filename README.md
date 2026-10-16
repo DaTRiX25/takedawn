@@ -44,7 +44,8 @@
   data, then you play.
 - To update, install the new version over the old one. Saves and settings stay.
 - Settings: Back and Start, F1, or TAKEDAWN SETTINGS in the game's menu.
-- Bugs: switch on Advanced > Diagnostic logging, restart the game and make the
+- Bugs: first check the [known issues](#known-issues). Then switch on
+  Advanced > Diagnostic logging, restart the game and make the
   problem happen again. Then Advanced > Create bug report, and attach the zip
   to the [issue form][issues].
 
