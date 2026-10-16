@@ -43,7 +43,9 @@ body:
     id: report
     attributes:
       label: Bug report file
-      description: Settings menu > Advanced > Create bug report makes a zip with the log and settings (nothing is sent anywhere). Drag it here. For a crash or a hang, switch on Advanced > Diagnostic logging first, restart the game and make it happen again.
+      description: "Required. In the settings menu, switch on Advanced > Diagnostic logging, restart the game and make the problem happen again. Then Advanced > Create bug report makes a zip with the log and settings (nothing is sent anywhere). Drag it here. I can't look into a report without it."
+    validations:
+      required: true
   - type: textarea
     id: media
     attributes:
