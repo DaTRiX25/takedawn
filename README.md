@@ -34,6 +34,9 @@
 
 **TL;DR**
 
+- This is a port, not a remaster. It runs the original 2004 game with its
+  own cars, tracks, textures and physics. The picture and sound extras are
+  options on top.
 - Takedawn runs the original Xbox *Burnout 3: Takedown* as a native program.
 - Compared with the console: up to 4x resolution, widescreen and ultrawide,
   60 fps crash cameras, and music and 60 fps in split screen. Custom
