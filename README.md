@@ -39,7 +39,8 @@
   60 fps crash cameras, and music and 60 fps in split screen. Custom
   soundtracks play from a folder of your own MP3 or FLAC files.
   [Highlights](#highlights) has the rest.
-- [Download](#download) it for your device and start it.
+- [Download](#download) it for your device and start it. For
+  [full speed](#for-full-speed-60-fps) it needs about a Steam Deck's power.
 - Point it at a disc image of your own Burnout 3 (USA). It installs the game
   data, then you play.
 - To update, install the new version over the old one. Saves and settings stay.
