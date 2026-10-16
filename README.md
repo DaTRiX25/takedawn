@@ -238,6 +238,21 @@ report zip from Advanced > Create bug report helps a lot.
 - Android: Android 13 or newer, 64-bit, a Snapdragon chip with Adreno
   graphics, and a built-in or connected controller.
 
+#### For full speed (60 fps)
+
+The game advances one step per frame, as on the Xbox. Below 60 fps the
+whole game runs slower.
+
+- PC and Linux: a CPU at least as fast as the Steam Deck's (4 cores,
+  8 threads, Ryzen 3000 or newer). Low-power laptop chips may fall short: a
+  Core Ultra 5 228V laptop ran at 40 to 60 fps at render scale 1. A 2-core
+  Celeron is too slow.
+- Graphics: Steam Deck class at render scale 1 or 2. Higher scales need a
+  desktop card.
+- Mac: Apple silicon. Tested on M5 only.
+- Android: Snapdragon 865 or newer. Phones that throttle when warm can drop
+  below 60.
+
 ## Quick start
 
 1. Make a copy of your own disc. Takedawn supports one version of the game:
