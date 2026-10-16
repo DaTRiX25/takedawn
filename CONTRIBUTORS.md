@@ -6,7 +6,7 @@ file.
 
 ## Maintainer of Takedawn
 
-### Kornél Felföldi
+### xenophobentx
 The macOS, Linux, Steam Deck, Windows and Android ports, the Vulkan backend,
 the installer, the settings menu and the optional picture and sound features.
 
