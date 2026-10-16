@@ -23,8 +23,12 @@ GLSLANG_TAG=16.6.0
 case "$(uname -s)" in
   Darwin) LLVM_ASSET="llvm-mingw-$LLVM_MINGW_VER-ucrt-macos-universal.tar.xz" ;;
   Linux)  LLVM_ASSET="llvm-mingw-$LLVM_MINGW_VER-ucrt-ubuntu-22.04-$(uname -m | sed s/aarch64/aarch64/).tar.xz" ;;
+  # Native Windows build from Git Bash/MSYS: the toolchain's Windows release.
+  MINGW*|MSYS*|CYGWIN*) LLVM_ASSET="llvm-mingw-$LLVM_MINGW_VER-ucrt-x86_64.zip" ;;
   *) echo "unsupported host" >&2; exit 1 ;;
 esac
+# CMake is a native program on Windows: hand it C:/... paths (see build-mingw.sh).
+wp() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 
 mkdir -p "$PREFIX/dl"
 cd "$PREFIX"
@@ -32,7 +36,12 @@ fetch() { [ -s "dl/$2" ] || curl -fL --retry 3 -o "dl/$2" "$1"; }
 
 if [ ! -x llvm-mingw/bin/x86_64-w64-mingw32-clang ]; then
   fetch "https://github.com/mstorsjo/llvm-mingw/releases/download/$LLVM_MINGW_VER/$LLVM_ASSET" "$LLVM_ASSET"
-  mkdir -p llvm-mingw && tar -xf "dl/$LLVM_ASSET" -C llvm-mingw --strip-components 1
+  mkdir -p llvm-mingw
+  case "$LLVM_ASSET" in
+    *.zip) rm -rf llvm-mingw.tmp && unzip -q "dl/$LLVM_ASSET" -d llvm-mingw.tmp \
+             && mv llvm-mingw.tmp/*/* llvm-mingw/ && rm -rf llvm-mingw.tmp ;;
+    *) tar -xf "dl/$LLVM_ASSET" -C llvm-mingw --strip-components 1 ;;
+  esac
 fi
 export PATH="$PREFIX/llvm-mingw/bin:$PATH"
 
@@ -61,8 +70,8 @@ if [ ! -f glslang/lib/libglslang.a ]; then
   fetch "https://github.com/KhronosGroup/glslang/archive/refs/tags/$GLSLANG_TAG.tar.gz" "$A"
   rm -rf glslang-src && mkdir glslang-src && tar -xf "dl/$A" -C glslang-src --strip-components 1
   cmake -S glslang-src -B glslang-build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE="$HERE/cmake/llvm-mingw-x86_64.cmake" -DLLVM_MINGW_ROOT="$PREFIX/llvm-mingw" \
-    -DCMAKE_INSTALL_PREFIX="$PREFIX/glslang" -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_TOOLCHAIN_FILE="$(wp "$HERE/cmake/llvm-mingw-x86_64.cmake")" -DLLVM_MINGW_ROOT="$(wp "$PREFIX/llvm-mingw")" \
+    -DCMAKE_INSTALL_PREFIX="$(wp "$PREFIX/glslang")" -DBUILD_SHARED_LIBS=OFF \
     -DENABLE_OPT=OFF -DENABLE_GLSLANG_BINARIES=OFF -DENABLE_CTEST=OFF -DBUILD_EXTERNAL=OFF
   cmake --build glslang-build -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
   cmake --install glslang-build

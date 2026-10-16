@@ -20,6 +20,18 @@ Dependencies go to `~/.cache/bo3-windeps` (`BO3_WINDEPS`). The same llvm-mingw
 (Windows x86-64 zip) can build natively on Windows with the same CMake
 options (`-DCMAKE_TOOLCHAIN_FILE=cmake/llvm-mingw-x86_64.cmake`).
 
+## Native build on Windows (Git Bash)
+
+The same three scripts run from Git Bash on Windows: `fetch-deps.sh` takes the
+llvm-mingw Windows zip there, and both scripts hand CMake `C:/...` paths
+(`cygpath -m`). `regen.sh` calls Python through the `py -3` launcher, so install
+capstone for that Python once (`py -3 -m pip install --user capstone`). The
+toolkit checkout is found as before (`XBOXRECOMP_DIR`, or a sibling `xboxrecomp`).
+
+    ./regen.sh --disasm
+    tools/win/fetch-deps.sh
+    tools/win/build-mingw.sh
+
 ## Packaging
 
 Ship: `burnout3.exe`, `SDL2.dll`, the user's own `Burnout 3 Takedown\` folder

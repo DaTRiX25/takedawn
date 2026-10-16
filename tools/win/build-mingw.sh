@@ -19,13 +19,18 @@ fi
 [ -x "$D/llvm-mingw/bin/x86_64-w64-mingw32-clang" ] || "$HERE/tools/win/fetch-deps.sh"
 B="${BUILD_DIR:-$HERE/build-mingw}"
 
-cmake -S "$HERE" -B "$B" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE="$HERE/cmake/llvm-mingw-x86_64.cmake" \
-  -DLLVM_MINGW_ROOT="$D/llvm-mingw" \
-  -DXBOXRECOMP_DIR="$TK" \
-  -DCMAKE_PREFIX_PATH="$D/SDL2/x86_64-w64-mingw32;$D/glslang" \
-  -DVulkan_INCLUDE_DIR="$D/vulkan/include" \
-  -DVulkan_LIBRARY="$D/vulkan/lib/libvulkan-1.dll.a" \
+# On a Windows host (Git Bash/MSYS) CMake is a native program: give it C:/...
+# paths, which MSYS leaves alone, rather than /c/... ones it may not rewrite
+# inside a ;-separated list.
+wp() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
+
+cmake -S "$(wp "$HERE")" -B "$(wp "$B")" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE="$(wp "$HERE/cmake/llvm-mingw-x86_64.cmake")" \
+  -DLLVM_MINGW_ROOT="$(wp "$D/llvm-mingw")" \
+  -DXBOXRECOMP_DIR="$(wp "$TK")" \
+  -DCMAKE_PREFIX_PATH="$(wp "$D/SDL2/x86_64-w64-mingw32");$(wp "$D/glslang")" \
+  -DVulkan_INCLUDE_DIR="$(wp "$D/vulkan/include")" \
+  -DVulkan_LIBRARY="$(wp "$D/vulkan/lib/libvulkan-1.dll.a")" \
   "$@"
 cmake --build "$B" --target burnout3 -j"${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc)}"
 cp -f "$D/SDL2/x86_64-w64-mingw32/bin/SDL2.dll" "$HERE/bin/"
