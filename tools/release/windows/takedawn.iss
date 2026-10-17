@@ -46,13 +46,21 @@
   #error Icon (takedawn.ico) is required
 #endif
 
+; VersionInfoVersion takes numbers only: "0.1.2-beta" is 0.1.2 there.
+#define DashAt Pos("-", Version)
+#if DashAt > 0
+  #define VersionNumbers Copy(Version, 1, DashAt - 1)
+#else
+  #define VersionNumbers Version
+#endif
+
 [Setup]
 AppId={{8C1E5B0A-64D3-4C7E-A1F2-0D9B7E53A6C4}
 AppName=Takedawn
 AppVersion={#Version}
 AppVerName=Takedawn {#Version}
 AppPublisher=Takedawn
-VersionInfoVersion={#Version}
+VersionInfoVersion={#VersionNumbers}
 VersionInfoProductName=Takedawn
 VersionInfoDescription=Takedawn setup
 PrivilegesRequired=lowest
@@ -294,15 +302,35 @@ begin
 end;
 
 #ifndef PayloadTest
+// The folder chosen for the game data in the setup window (BO-197): the first
+// line of data-folder.txt, or '' for the default.
+function ChosenDataFolder(): String;
+var
+  Lines: TArrayOfString;
+begin
+  Result := '';
+  if LoadStringsFromFile(ExpandConstant('{localappdata}') + '\Takedawn\data-folder.txt', Lines) and
+     (GetArrayLength(Lines) > 0) then
+    Result := Trim(Lines[0]);
+end;
+
 // The uninstaller removes the program only; say where the rest is.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Chosen: String;
 begin
   if (CurUninstallStep = usDone) and not UninstallSilent then
+  begin
+    Chosen := ChosenDataFolder();
+    if Chosen <> '' then
+      Chosen := Chosen + '  (game data, the folder you chose)' + #13#10;
     MsgBox('Takedawn was removed.' + #13#10#13#10 +
            'The game data installed from your disc, your saves and your settings were not removed:' + #13#10 +
+           Chosen +
            ExpandConstant('{localappdata}') + '\Takedawn  (game data, shader cache)' + #13#10 +
            ExpandConstant('{userappdata}') + '\Takedawn  (saves, settings, logs)' + #13#10#13#10 +
            'Delete those folders yourself if you want them gone.',
            mbInformation, MB_OK);
+  end;
 end;
 #endif

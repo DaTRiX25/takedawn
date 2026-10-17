@@ -32,6 +32,7 @@
 #include "controls.h"
 #include "input_map.h"
 #include "keyboard.h"
+#include "touch_pad.h"                 /* the on-screen controls (BO-189) */
 #include "platform/recomp_env.h"
 #include "platform/recomp_patch.h"
 #include "recomp_types.h"
@@ -167,8 +168,9 @@ static void ctl_pad(void)
     driving = ctl_driving();
     scripted = usb >= 0 && (xbox_InputScriptedPads() & (1u << usb));
     nintendo = xbox_InputFaceLayoutNintendo();
+    /* The keys and the on-screen controls are the Xbox layout always. */
     ps2 = scheme == 1 && driving
-       && !(src & XBOX_INPUT_SRC_KEYS)
+       && !(src & (XBOX_INPUT_SRC_KEYS | XBOX_INPUT_SRC_TOUCH))
        && (s_scripted_too || !scripted);
     /* A script standing in for a controller (BO3_CTL_SCRIPTED) has to be one
      * all the way: the face layout is applied as a host pad is read, which a
@@ -202,6 +204,15 @@ static void ctl_pad(void)
     }
 }
 
+/* The on-screen controls' layout (touch_pad.h, BO-189): the race one while
+ * the title takes driving input, the menu one otherwise. Asked on the
+ * window's thread each frame; the words it reads are the title's, read
+ * only. */
+static int touch_driving(void)
+{
+    return g_xbox_mem_offset ? ctl_driving() : 0;
+}
+
 void bo3_controls_start(uint32_t (*flips)(void))
 {
     const char *v = recomp_env(RENV_INPUT_CONTROL_SCHEME), *log = getenv("BO3_CTL_LOG");
@@ -220,6 +231,7 @@ void bo3_controls_start(uint32_t (*flips)(void))
             fprintf(stderr, "BO3_CTL_LOG: cannot write %s\n", log);
     }
     recomp_patch_on_mark("ctl_pad", ctl_pad);
+    xbox_InputTouchSetDrivingHook(touch_driving);
     if (xbox_InputControlScheme() == 1)
         fprintf(stderr, "[INPUT] driving controls: PS2 layout (input.control_scheme = ps2); "
                         "menus keep the Xbox layout\n");

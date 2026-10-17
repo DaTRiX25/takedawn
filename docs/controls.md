@@ -100,6 +100,28 @@ the D-pad and the stick as one direction, so an arrow is one step in a menu
 does). F1, and Cmd and comma on a Mac, are the settings'; while they are open the
 title sees no keys, and the keys held when they close stay unseen until let go.
 
+## Touch (Android)
+
+Without a controller the Android build shows on-screen controls (the
+toolkit's `src/input/touch_pad.c`). They follow the game. In a race: a stick
+on the left half that starts where the thumb lands, and GAS, BRAKE, BOOST,
+BREAKER (Crashbreaker), LOOK (look back) and VIEW on the right. In menus and
+the pause menu: a d-pad, A B X Y, LT and RT. Pause and the settings menu sit
+at the top, left of the score board. BOOST keeps the accelerator down, so
+one thumb can boost, and a finger can slide between GAS and BOOST without
+lifting. The touch controls always use the Xbox layout, like the keys.
+
+The controls are placed on the screen, not on the picture: aspect, fit,
+ultrawide and render scale do not move them. They keep clear of the HUD's
+corners (POS, LAP, the speedometer, the boost bar) and of the score board.
+On a tablet they stay the size they have on a phone.
+
+Settings, on the Input page of the settings menu: Touch controls (Auto hides
+them while a controller is used and shows them at the next touch; Always;
+Off), their opacity and size, and Accelerate automatically. The settings
+menu itself works by touch: drag a list to scroll it, tap a row to change
+it, drag or tap a slider.
+
 ## Back and the settings
 
 Because Back + Start opens the settings, the game sees Back a moment late: a

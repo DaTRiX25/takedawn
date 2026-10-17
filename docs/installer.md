@@ -85,11 +85,25 @@ Failure codes: `no-source`, `source-unreadable`, `not-xbox-image`,
 process (SIGINT and SIGTERM are answered with `cancelled`) or create
 `<dest>/install.cancel`.
 
-**Where the game looks for its data** (`src/game/install.h`): a `default.xbe`
-named on the command line; `--data <dir>` or `TAKEDAWN_DATA`; the working
-directory when it holds `Burnout 3 Takedown/default.xbe` (a checkout, as
-before; no marker is asked for); else the per-user root, which is also
-`--install`'s default destination:
+**Where the game looks for its data** (`src/game/install.h`), first match wins:
+
+1. a `default.xbe` named on the command line;
+2. `--data <dir>`;
+3. `TAKEDAWN_DATA`;
+4. the working directory when it holds `Burnout 3 Takedown/default.xbe` (a
+   checkout, as before; no marker is asked for);
+5. the folder chosen in the setup window (BO-197): the first line of
+   `data-folder.txt` in the per-user local folder, which is
+   `%LOCALAPPDATA%\Takedawn` on Windows and the save folder (the middle column
+   below) on macOS and Linux. `--install --dest <dir> --remember` writes it
+   before the copy starts, so a stopped run resumes there; the default root
+   removes it. Not on Android;
+6. the per-user root below.
+
+`--install` without `--dest` uses `TAKEDAWN_DATA`, then case 5, then case 6.
+A case 5 folder that is not there gets its own sentence ("is not there. If it
+is on a drive that is not connected, ...") and the setup window. The per-user
+roots:
 
 | | data root | saves, settings, logs | shader cache |
 |---|---|---|---|
@@ -123,7 +137,8 @@ does not use it.
 
 `burnout3 --data-status [--data <dir>]` answers, without starting anything,
 where the data is (or would be put) and whether it is whole: `LOG data root
-<dir>`, `LOG data files|bytes|free-needed <n>`, `LOG data disc|version <text>`,
+<dir>`, `LOG data place named|saved|default|checkout` (which case above gave
+it), `LOG data default <dir>` (case 6), `LOG data files|bytes|free-needed <n>`, `LOG data disc|version <text>`,
 then `STEP data OK ...` / `RESULT OK <root>` (status 0) or `STEP data FAIL
 not-installed|unverified <text>` / `RESULT FAIL data <code>` (status 3).
 
@@ -144,7 +159,8 @@ executable, whose STEP / PROGRESS / RESULT lines it follows:
 |---|---|---|
 | it opens | `<game> --data-status [--data <dir>]` | where the data goes, the free space; installed: Play at once |
 | a disc is dropped or chosen | `<game> --install <disc> --check` | the disc card: accepted, or why not |
-| Install / Resume | `<game> --install <disc> [--dest <dir>]` | the progress, the file being copied |
+| Install / Resume | `<game> --install <disc> [--dest <dir>]`; with a folder chosen by Change... (or one chosen before) `--dest <dir> --remember` | the progress, the file being copied |
+| Change... picks a folder | `<game> --data-status --data <dir>` | its free space; a folder that holds a whole install is checked in place (`--install "<dir>/Burnout 3 Takedown" --dest <dir> --remember`) and kept |
 | an older install without `.complete` (`unverified`) | `<game> --install "<root>/Burnout 3 Takedown" --dest <root>` | started by itself, with a note: checked in place, nothing copied, no disc needed |
 | "Prepare graphics for smooth first races" is ticked (it is by default) | `<game> [--data <dir>] --no-setup --build-shaders` | a second row; a failure is a warning, the install stays whole |
 | Play | `<game> [--data <dir>]`: on Linux the window's process becomes the game (`execve`), elsewhere the game is started and the window closes | |
@@ -155,8 +171,25 @@ same command again: the journal keeps what was copied. Each failure code of
 `--install` has its own headline and advice (`messages.cpp`); the installer's
 own sentence is the tooltip and is in "Show details" and "Copy details". A
 disc that cannot be used is said on the disc card; a failure of the copy is
-said in a note above the progress row. There is no destination picker: the
-data goes to the game's own folder (`TAKEDAWN_DATA` / `--data` name another).
+said in a note above the progress row.
+
+**Where the data goes (BO-197).** "Installs to" has Change... and, when the
+folder is not the default, Default. Change... is the system's folder dialog,
+or on Linux and with a controller the built-in list in its folder mode
+("Install here" on top, no disc images). A folder with other files in it gets
+a `Takedawn` folder inside; an empty one, one named Takedawn, or one that
+holds an install is used as it is (picking its `Burnout 3 Takedown` folder
+means its root). Refused, with a note: not a whole path, a file, inside the
+program's folder (the window's and the game's, a macOS bundle, an AppImage's
+`APPDIR`, on Windows also `<folder>.prev`), not writable (a temporary folder
+is made and removed where the data folder would be made). Asked first: a
+network drive (Windows `DRIVE_REMOTE`; nfs, smb, afp, webdav, sshfs) and a
+removable or external one (Windows `DRIVE_REMOVABLE`; macOS `/Volumes/...`;
+Linux `/media`, `/run/media`, `/mnt`). The free space line and the Install
+button follow the chosen disk as before. With `--data` or `TAKEDAWN_DATA`
+(the window got `--dest`) there is no Change...: the game would not look
+anywhere else. Nothing moves the files: to move an install, move its folder
+and pick it with Change....
 
 **How the game opens it.** A person who starts the game without a whole install
 gets the window instead of a silent exit: `bo3_data_enter` (`src/game/install.c`)
@@ -218,6 +251,9 @@ Takedawn there without data must be able to finish the install.
   screen with a controller made inside SDL (`shots.h` lists the steps);
   `TAKEDAWN_SETUP_TRACE=1` prints the controllers SDL sees, what the search
   found and every press.
+  `RECOMP_DEBUG=window_display=<n>` opens the window centred on display n
+  (0 = the main one), as it does the game's, and Play hands it on: tests on a
+  machine with two displays keep both windows on the one they name.
 
 **How it ships (macOS).** One bundle with both executables:
 
@@ -444,9 +480,9 @@ The installer never resets, prunes or removes anything in podman: containers run
 and images are only pulled, never deleted, and it touches no store other than the one it is
 given (`--podman-root`, or podman's own).
 
-- `shaders` (all systems, BO-93): the installed game builds its shader cache by playing a race and a
-  crash event by itself (`burnout3 --build-shaders`, `docs/shader-prebuild.md`; about 2 minutes,
-  ~10 MB). It is started through the launcher the package step wrote (macOS: the bundle's own
+- `shaders` (all systems, BO-93): the installed game builds every shader and pipeline it needs from the
+  shipped coverage manifest (`burnout3 --build-shaders`, `docs/shader-prebuild.md`; a few seconds,
+  ~2 MB; since BO-208 no scene is played). It is started through the launcher the package step wrote (macOS: the bundle's own
   executable, because Metal's compiled cache belongs to the bundle id; Linux: `burnout3.sh`;
   Windows: `burnout3.exe` with `<root>\Game` as the working directory), with `--cache-dir` when
   `--shader-cache <dir>` is given (tests give a folder of their own; otherwise the game's own cache).

@@ -8,7 +8,7 @@ once, without a window or sound, so everything they need is compiled and
 listed before the player gets there.
 
 It is always optional. The setup window has it as a box that is ticked by
-default (*Prepare graphics for smooth first races*, about 2 minutes, ~10 MB;
+default (*Prepare graphics for smooth first races*, a few seconds, ~2 MB;
 untick it to skip), and the settings overlay has it as an action (Graphics,
 *Build shaders now*). The game never asks about it by itself at its first
 start. Without it the game works as before: each shader compiles when it is
@@ -48,6 +48,124 @@ update only makes the next start's pre-warm compile again, in the background,
 from the same list. Tests and the installer's smoke runs must set
 `RECOMP_RENDER_SHADER_CACHE` to a directory of their own (`tools/headless`
 does: `build/shader-cache` in the checkout).
+
+## The shipped coverage manifest (BO-208)
+
+The scene pre-build above learns only what its two scenes draw. Since BO-208
+the program carries a list of what a game needs, made by a sweep of the title
+on the developer's machines, and builds all of it before the first race.
+
+`graphics/pipelines-vulkan.manifest` and `graphics/pipelines-metal.manifest`
+are compiled into the program (`src/game/pcmanifest.c`), so they are the same
+on every platform, an APK included. They are key lists in the format of the
+files above, under the backend's key-format version plus `; manifest <revision>`.
+They hold no title code and no art:
+
+- vertex programs by the 64-bit hash of their slots (record type 16). The
+  microcode is found on the player's machine, in the scan of their own
+  `default.xbe` (`nv2a_pcache_scan_vsh`), and goes into the local key list;
+- combiner states (the register values the title programs) and pipeline keys
+  (shader ids, vertex layout, topology, blend, write mask, depth bit).
+
+A program the title assembles at run time (one of 28 in a normal game, used by
+a handful of pipelines) is not in the executable; its hash stays unresolved
+and the title shows it at its first draw, which then builds the manifest's
+pipelines that name it (a rescan).
+
+At every start the backend applies the manifest: what the local key list lacks
+is appended, and the pre-warm builds the list on up to four threads
+(`RECOMP_PCACHE_THREADS`). The first start, after a new manifest, a driver or a
+changed shader generator, is the long one: the title is held at its first
+draw while the pre-warm works, up to 180 s (`RECOMP_PCACHE_HOLD_S`), with
+*Preparing graphics N/M* on the screen (the overlay line, so Android has it
+too). With the caches warm it is lookups, 0.1 to 0.3 s. The installer's
+*Prepare graphics* step and the overlay's *Build shaders now* run the same build
+(`--build-shaders`, scene `manifest`, seconds instead of minutes); the old scene
+pre-build stays as `--build-shaders --scenes race,crash`, used by default only
+in a build without a manifest.
+
+### What a setting changes
+
+Only HDR changes the title's own pipelines (half-float targets and the HDR
+variant of every combiner). The pre-warm builds the variant in use first, then,
+where HDR can be reached at all (the display or the system can show it, or HDR
+is on), the other one on a single low-priority thread after the game has
+started, so a later switch in the menu waits for nothing. The Windows HDR
+detection (BO-207) only has to make `nv2a_host_hdr_potential()` greater than
+1. Metal's HDR is the prototype of BO-110 and keeps no HDR keys. Anti-aliasing
+(FXAA, SMAA), sharpening, the render scale and the title's own bloom and
+motion blur are the presenter's passes or part of the frame; their pipelines
+are built at the presenter's first frame (SMAA used to be built at the moment
+it was switched on), and the title's pipelines have one sample and no
+resolution in their keys.
+
+### The sweep
+
+`tools/headless/sweep.sh <outdir> <visit>...` plays each visit (headless, in a
+process of its own, with no manifest and nothing seeded from the executable) and
+leaves its key list in `<outdir>/<visit>/cache`. `sweep_visits.sh` prints the
+standard list: every Single Event track in both directions, Road Rage and Time
+Attack on a sample of them, Crash junctions, the garage through every car, the
+title's AI racing for 150 game seconds on several tracks, World Tour (every
+region, location and event), Multiplayer split screen (five modes) and the menu
+pages. A visit is `mode/region/track/cars/drive`
+(`shaderbuild.c`, `sweep_build`) or a script file (`script:<file>`, one step a
+line: `press`, `pressuntil`, `file`, `race_tail`, `mark`, ...). `BO3_SWEEP_SHOTS=1`
+dumps a frame at every mark. Then:
+
+    tools/headless/pcache_keys.py manifest -o graphics/pipelines-vulkan.manifest \
+        --rev <name> --base graphics/pipelines-vulkan.manifest <outdir>/*/cache/vk_pipelines.bin
+
+The manifest only grows (`--base` keeps what it had). The key list of a Metal
+sweep gives the Metal manifest. One Vulkan manifest serves every Vulkan
+platform: the keys do not depend on the driver.
+
+## Cache hygiene (BO-208)
+
+- The driver's pipeline cache is one file per driver build:
+  `vk_pipeline_<vendor>_<device>_<uuid>[_t<hash of TU_DEBUG>].bin`, under a
+  32-byte header of ours (vendor, device, driver version, length, CRC). A
+  truncated, damaged or foreign file is detected, removed and built again,
+  where the driver would only have started empty without saying so. The bundled
+  Turnip, the system driver and a custom package of one GPU each keep their own
+  file, so switching between them throws nothing away. Blobs unused for 90 days
+  are removed.
+- On Android the key lists, the SPIR-V file and the driver caches are in the
+  app's files (`files/graphics`), which the system does not empty; the scaled 2D
+  art stays in the cache folder (`ui_scale`, regenerable).
+- Invalidation needs no rule: a new manifest revision adds keys, a changed key
+  format drops the local list (the manifest then fills it again), a new driver is
+  a new file, and a changed shader generator is a changed SPIR-V key.
+
+## HDR variants (BO-110)
+
+With HDR on (Vulkan: graphics.hdr where the display offers HDR10), the
+game draws with an HDR variant of each combiner shader and with pipelines
+for half-float targets. These are built and kept only where HDR can be
+used:
+
+- **No HDR display, HDR never switched on** (most desktops, all Android):
+  nothing HDR is built, listed or cached; the pre-build's time and the
+  cache's size are what they were.
+- **The display can show HDR** (the Graphics page has the HDR row) **or HDR
+  is on**: *Build shaders now* in the overlay builds the HDR variants too
+  (the game starts the pre-build with `RECOMP_PCACHE_HDR=1`; each scene
+  process's pre-warm builds the HDR variant of every key in the list beside
+  the SDR one, so the SPIR-V cache and the driver's cache hold both). The
+  setup window's pre-build runs before any display is known and builds SDR
+  only.
+- **HDR switched on for the first time on a machine that has not built
+  them**: the switch (made in the paused overlay, applied at the next flip)
+  starts the pre-warm thread on the HDR variants of the whole key list,
+  derived from the SDR keys (the HDR variant of each combiner state, each
+  pipeline on a half-float target with it). The draws wait for its
+  pipelines as at a start, at most 3 s, and the window shows *Preparing HDR
+  shaders* while it runs; nothing is compiled on the render thread for a key
+  the list had. What HDR then meets that the list lacked is recorded as its
+  own record type (`PC_FS_HDR`, and pipeline keys with the half-float bit),
+  which a build without HDR skips.
+- At every start the pre-warm builds the variant the targets are in: SDR
+  with HDR off, HDR with it on.
 
 ## The command
 
@@ -150,7 +268,7 @@ deleted when the scene succeeds.
 ```
 PROTOCOL 1
 PLAN shaders
-STEP shaders BEGIN Building shaders: the game plays 2 scenes by itself, without a window or sound (about 2 minutes)
+STEP shaders BEGIN Building shaders: the game plays 1 scene by itself, without a window or sound (about 1 minute)
 LOG shaders cache <dir>
 PROGRESS shaders 0.000 race
 LOG shaders 28 vertex programs and 34 pixel shader definitions found in the game's executable

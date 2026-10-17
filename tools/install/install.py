@@ -81,7 +81,7 @@ DESCRIPTIONS = {
     "package": "Packaging the app",
     "desktop": "Installing the desktop entry and icon",
     "steam": "Adding the Steam shortcut",
-    "shaders": "Building shaders (the game plays a race and a crash event by itself, about 2 minutes)",
+    "shaders": "Preparing graphics (builds every shader and pipeline the game needs, a few seconds)",
 }
 APP_NAME = "Burnout 3 Takedown"
 GAME_DIR_NAME = "Burnout 3 Takedown"
@@ -717,7 +717,7 @@ def parse_args(argv):
     p.add_argument("--steam", action="store_true", help="Linux: also add the Steam shortcut (step `steam`; "
                                                         "Steam must be closed)")
     p.add_argument("--shaders", action="store_true", help="also let the installed game build its shader cache "
-                                                          "(step `shaders`, about 2 minutes; optional, never "
+                                                          "(step `shaders`, a few seconds; optional, never "
                                                           "on by itself; a failure there does not fail the install)")
     p.add_argument("--shader-cache", help="the shader cache the `shaders` step fills (default: the game's own; "
                                           "for tests, a folder of their own)")

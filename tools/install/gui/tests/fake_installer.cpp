@@ -4,7 +4,7 @@
 // game. It copies nothing and plays nothing.
 //
 //   fake_installer --data-status [--data <dir>]
-//   fake_installer --install <image-or-folder> [--dest <dir>] [--check]
+//   fake_installer --install <image-or-folder> [--dest <dir>] [--remember] [--check]
 //   fake_installer --build-shaders
 //   fake_installer [--data <dir>]          "the game": writes <dest>/played, status 0
 //
@@ -26,6 +26,10 @@
 // ".complete" is "unverified" for --data-status; installing from that folder
 // checks it in place (and fails with damaged-source when the folder holds a file
 // named "damaged").
+//
+// --remember keeps <dest> in "<default root>.location" (the game's data-folder.txt),
+// or removes that file when <dest> is the default root; without --data or --dest the
+// folder named there is the root, as the game's case 4 (install.h).
 //
 // Environment: TAKEDAWN_FAKE_ROOT is the default data root (else the working
 // directory's "fake-root"), TAKEDAWN_FAKE_PACE the milliseconds between progress
@@ -73,6 +77,15 @@ std::string DefaultRoot() {
   return r && *r ? r : (fs::current_path() / "fake-root").string();
 }
 
+std::string LocationFile() { return DefaultRoot() + ".location"; }
+
+std::string SavedRoot() {
+  std::ifstream in(LocationFile());
+  std::string line;
+  std::getline(in, line);
+  return line;
+}
+
 // The real installer's wording for each code, shortened.
 std::string Message(const std::string& code, const std::string& source, const std::string& dest) {
   if (code == "no-source") return source + " does not exist.";
@@ -112,11 +125,13 @@ bool Cancelled(const fs::path& cancel_file) {
   return g_stop || fs::exists(cancel_file, ec);
 }
 
-int DataStatus(const std::string& root) {
+int DataStatus(const std::string& root, const std::string& place) {
   std::error_code ec;
   Out("PROTOCOL 1");
   Out("PLAN data");
   Out("LOG data root " + root);
+  Out("LOG data place " + place);
+  Out("LOG data default " + DefaultRoot());
   Out("LOG data disc Burnout 3: Takedown, North America (NTSC-U) retail");
   Out("LOG data files " + std::to_string(kFiles));
   Out("LOG data bytes " + std::to_string(kBytes));
@@ -139,7 +154,7 @@ int DataStatus(const std::string& root) {
   return 3;
 }
 
-int Install(const std::string& source, const std::string& dest, bool check) {
+int Install(const std::string& source, const std::string& dest, bool check, bool remember) {
   const std::string name = fs::path(source).stem().string();
   std::error_code ec;
   const fs::path cancel_file = fs::path(dest) / "install.cancel";
@@ -154,6 +169,16 @@ int Install(const std::string& source, const std::string& dest, bool check) {
   Out(check ? "STEP disc BEGIN Checking the disc" : "STEP disc BEGIN Checking the disc and copying the game's data (2.5 GB)");
   Out("LOG disc source " + source);
   if (!check) Out("LOG disc destination " + dest);
+  if (remember && !check) {
+    if (fs::path(dest).lexically_normal() == fs::path(DefaultRoot()).lexically_normal()) {
+      fs::remove(LocationFile(), ec);
+      Out("LOG disc remembered: the game uses its default folder");
+    } else {
+      fs::create_directories(fs::path(LocationFile()).parent_path(), ec);
+      std::ofstream(LocationFile()) << dest << "\n";
+      Out("LOG disc remembered: the game uses " + dest + " from now on");
+    }
+  }
   Nap(10);
   if (IsCode(name)) return Fail("disc", name, Message(name, source, dest));
   const bool in_place = fs::equivalent(fs::path(source), fs::path(dest) / kGameDir, ec);
@@ -239,7 +264,7 @@ int Shaders(const std::string& root) {
   fs::remove(cancel_file, ec);
   Out("PROTOCOL 1");
   Out("PLAN shaders");
-  Out("STEP shaders BEGIN Building shaders: the game plays 2 scenes by itself, without a window or sound (about 2 minutes)");
+  Out("STEP shaders BEGIN Preparing graphics: the game builds what it needs without a window or sound (a few seconds)");
   Out("LOG shaders cache " + cache.string());
   if (mode == "nogpu") Out("WARN shaders no-gpu llvmpipe (LLVM 17.0.6, 256 bits), Vulkan 1.3.274");
   for (int i = 0; i <= 50; ++i) {
@@ -265,19 +290,24 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, OnSignal);
   std::signal(SIGTERM, OnSignal);
   std::vector<std::string> args(argv + 1, argv + argc);
-  std::string dest, source, mode = "play";
-  bool check = false;
+  std::string dest, source, mode = "play", place = "named";
+  bool check = false, remember = false;
   for (size_t i = 0; i < args.size(); ++i) {
     if ((args[i] == "--dest" || args[i] == "--data") && i + 1 < args.size()) dest = args[++i];
     else if (args[i] == "--check") check = true;
+    else if (args[i] == "--remember") remember = true;
     else if (args[i] == "--install" || args[i] == "--data-status" || args[i] == "--build-shaders") mode = args[i].substr(2);
     else if (args[i] == "--no-setup") continue;
     else if (args[i].rfind("--", 0) == 0) return 2;
     else source = args[i];
   }
-  if (dest.empty()) dest = DefaultRoot();
-  if (mode == "data-status") return DataStatus(dest);
-  if (mode == "install") return source.empty() ? 2 : Install(source, dest, check);
+  if (dest.empty()) {
+    dest = SavedRoot();
+    place = dest.empty() ? "default" : "saved";
+    if (dest.empty()) dest = DefaultRoot();
+  }
+  if (mode == "data-status") return DataStatus(dest, place);
+  if (mode == "install") return source.empty() ? 2 : Install(source, dest, check, remember);
   if (mode == "build-shaders") return Shaders(dest);
   std::error_code ec;
   fs::create_directories(dest, ec);

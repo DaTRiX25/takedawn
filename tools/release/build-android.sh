@@ -84,11 +84,11 @@ if [ "$STAMPED" = 1 ]; then
 else
     ssh "$H" "rm -rf '$D/licenses'/*"
 fi
-rsync -a --delete --exclude .git --exclude '/build*' --exclude /dist --exclude /out \
-      --exclude '/Burnout 3 Takedown' --exclude /backlog --exclude /.venv --exclude /.cache \
-      --exclude /src/game/recomp/gen --exclude /tools/release/local.env \
-      "$REPO/" "$H:$D/src/takedawn/"
-rsync -a --delete --exclude .git --exclude '/build*' "$TOOLKIT/" "$H:$D/src/xboxrecomp/"
+# Only what git tracks (BO-200: a worktree's saves/, runs/ and scratch are not
+# part of a build, and once filled the build machine's disk). Only
+# nothing else is copied; the generated code has its own copy below.
+git -C "$REPO" ls-files -z | rsync -a --from0 --files-from=- "$REPO/" "$H:$D/src/takedawn/"
+git -C "$TOOLKIT" ls-files -z | rsync -a --from0 --files-from=- "$TOOLKIT/" "$H:$D/src/xboxrecomp/"
 rsync -a --delete "$GEN/" "$H:$D/src/takedawn/src/game/recomp/gen/"
 # The copies have no git: say which commits they are (the toolkit's
 # cmake/build_id.cmake reads BUILD_COMMIT), so the program's version line

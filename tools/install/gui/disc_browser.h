@@ -55,6 +55,10 @@ class DiscBrowser : public QWidget {
   void SetPlaces(const QList<discs::Place>& places);
   // Whether the "system file chooser" button is offered (a desktop with a mouse).
   void SetNativeOffered(bool offered);
+  // Choosing a folder to install into (BO-197) in place of the disc: every folder has
+  // "Install here" on top, and no disc images are listed.
+  void SetFolderMode(bool on);
+  bool FolderMode() const { return folder_mode_; }
   // Shows the places, or `folder` when it is given and exists.
   void Open(const QString& folder = QString());
   // One level up: the parent folder, the places from a place, Cancelled from the places.
@@ -80,6 +84,7 @@ class DiscBrowser : public QWidget {
 
   QList<discs::Place> places_;
   QString folder_;
+  bool folder_mode_ = false;
   QElapsedTimer click_clock_;
   QLabel* title_ = nullptr;
   ElidedLabel* where_ = nullptr;

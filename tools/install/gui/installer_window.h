@@ -132,6 +132,23 @@ class InstallerWindow : public QWidget {
   void QueryStatus();
   void OnStatus(const DriverProcess::Result& result);
   QStringList DataArgs() const;  // "--data <dest>" when the root was named
+  QStringList StatusArgs() const;  // DataArgs, else "--data <target>" for a folder the player chose
+
+  // Where the data goes (BO-197): Change... and Default. The folder the player picks
+  // gets "Takedawn" added unless it is empty or already holds the game's data.
+  void ChangeDest();
+  void OpenDestBrowser();
+  void NativeDestDialog();
+  QString DestFolderFor(const QString& picked) const;
+  // Checks a folder and, when it is fit, makes it the target and asks the game about
+  // it. False with the reason in a note when it is not (or the player said no to a
+  // warning). `exact`: the folder as it is (Default), no "Takedawn" added.
+  bool SetDest(const QString& picked, bool exact = false);
+  // Empty when `folder` can hold the data, else why not. `warning` gets a sentence
+  // for a folder that works but may not be a good place (a network or removable drive).
+  QString CheckDest(const QString& folder, QString* warning) const;
+  void RefreshDestControls();
+  bool DestFixed() const;  // --data / TAKEDAWN_DATA named the root, or a checkout: no choice
   void RefreshSpace();
   qint64 CopiedBytes() const;  // the game's files already in the data folder
   qint64 FreeBytes() const;    // free on the disk the data folder is on, -1 when unknown
@@ -213,6 +230,9 @@ class InstallerWindow : public QWidget {
   qint64 data_bytes_ = 0;
   qint64 free_needed_ = 0;
   int data_files_ = 0;
+  QString data_place_;    // where the game looks by itself: "named", "saved", "default", "checkout"
+  QString default_root_;  // the per-user default folder
+  QString target_;        // the folder the player chose with Change... (empty: where the game looks)
   QString status_code_;  // "" installed, "not-installed", "unverified"
   QString status_text_;
   DriverProcess* status_proc_ = nullptr;
@@ -269,6 +289,11 @@ class InstallerWindow : public QWidget {
   QCheckBox* steam_box_ = nullptr;  // Linux only: the Steam shortcut (steam_shortcut.h)
   // Asked when Steam is running and has to close for the shortcut; tests replace it.
   std::function<bool()> ask_close_steam_;
+  // Asked about a network or removable drive; tests replace it.
+  std::function<bool(const QString&)> ask_use_anyway_;
+  bool browse_dest_ = false;  // the built-in browser is choosing where the data goes, not the disc
+  QToolButton* change_ = nullptr;
+  QToolButton* reset_ = nullptr;
   QToolButton* details_toggle_ = nullptr;
   QPlainTextEdit* log_ = nullptr;
   HeatProgressBar* progress_ = nullptr;

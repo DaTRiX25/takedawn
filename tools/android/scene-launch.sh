@@ -27,6 +27,8 @@
 #                                    (a folder with UDATA/ and TDATA/, as saves/ on the host)
 #   ANDROID_SAVES_FROM_DEVICE=<dir>  the same, copied on the device (a backup, a seed)
 #                                    (without either the root is kept as it is; empty: the first-boot screens)
+#   ANDROID_SHADER_CACHE=<device path>  the shader cache of this run, emptied before the start
+#                                    (a cold start on demand; default: the app's own)
 #   ANDROID_ALLOW_REAL_SAVES=1       the old behaviour, on purpose: the scene runs on the player's
 #                                    own saves and settings (<files>/takedawn, <files>/burnout3)
 #
@@ -80,11 +82,15 @@ done
   for v in ${MIRROR[@]+"${MIRROR[@]}"}; do echo "$v=$F/scene-$v.txt"; done
   echo "RECOMP_PAD_LIVE=$F/scene-pad.txt"
   for kv in ${SAVE_ARGS[@]+"${SAVE_ARGS[@]}"}; do echo "$kv"; done
+  # BO-208: a shader cache of the scene's own (a cold start on demand): the app's
+  # usual one is in its internal files, which adb cannot empty.
+  [ -n "${ANDROID_SHADER_CACHE:-}" ] && echo "RECOMP_RENDER_SHADER_CACHE=$ANDROID_SHADER_CACHE"
   # A test start: the device's own pad (a resting stick, a hand) must not
   # take the pad from the script.
   echo "RECOMP_DEBUG=${RECOMP_DEBUG:+$RECOMP_DEBUG,}pad_script_only=1"
 } > "$D/device-env.txt"
 
+[ -n "${ANDROID_SHADER_CACHE:-}" ] && $ADB shell "rm -rf '$ANDROID_SHADER_CACHE'"
 $ADB shell "am force-stop $P; : > $F/scene-pad.txt; rm -f $F/ft.csv $F/scene-BO3_*.txt $F/takedawn.log"
 # The scene's own save root: seeded when asked, else kept (made if missing).
 if [ -n "$SAVE_DIR" ]; then

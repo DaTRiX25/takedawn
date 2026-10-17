@@ -337,14 +337,43 @@ class PadTest : public QObject {
     Press({PadKey::Accept});
     QVERIFY(w->shaders_box_->isChecked());
     Press({PadKey::Up});
+    QCOMPARE(w->focusWidget(), w->change_);     // where the data goes (BO-197)
+    Press({PadKey::Up});
     QCOMPARE(w->focusWidget(), w->image_browse_);
-    Press({PadKey::Down, PadKey::Down, PadKey::Down, PadKey::Down, PadKey::Right});
+    Press({PadKey::Down, PadKey::Down, PadKey::Down, PadKey::Down, PadKey::Down, PadKey::Right});
     QCOMPARE(w->focusWidget(), w->primary_);
 
     Press({PadKey::Accept});  // Install
     QTRY_COMPARE_WITH_TIMEOUT(w->phase_, PH::Done, 20000);
     Press({PadKey::Start});
     QCOMPARE(w->play_count_, 1);
+  }
+
+  // Change... with the controller (BO-197): the same list in its folder mode, no disc
+  // images in it, "Install here" on top; the SD card gets a Takedawn folder.
+  void changeWithThePadPutsTheDataOnTheCard() {
+    Tree();
+    InstallerWindow* w = Make();
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    w->change_->setFocus();
+    Press({PadKey::Accept});
+    QCOMPARE(w->stack_->currentWidget(), static_cast<QWidget*>(w->browser_));
+    QVERIFY(w->browser_->FolderMode());
+    QListWidget* list = w->browser_->List();
+    MoveTo(list, RowOf(list, "Drive: SDCARD"));
+    Press({PadKey::Accept});
+    QCOMPARE(list->item(0)->text(), QString("Install here"));
+    for (int i = 0; i < list->count(); ++i) QVERIFY(!list->item(i)->text().endsWith(".iso"));
+    MoveTo(list, 0);
+    Press({PadKey::Accept});
+    QCOMPARE(w->stack_->currentWidget(), w->main_page_);
+    QVERIFY(!w->browser_->FolderMode());
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QCOMPARE(w->data_root_, QDir::cleanPath(card_ + "/Takedawn"));
+    // The disc browser afterwards is the disc browser again.
+    w->image_browse_->click();
+    QVERIFY(!w->browser_->FolderMode());
+    Press({PadKey::Back});
   }
 
   void backLeavesTheBrowserAndClosesAbout() {

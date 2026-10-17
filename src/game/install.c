@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -261,6 +263,178 @@ static void default_root(char *out, unsigned n)
     snprintf(out, n, "%s/Game", base);
 }
 
+/* ── the folder the player chose for the data (BO-197) ────────────── */
+
+/* The setup window's Change... button, or --install --remember, writes the
+ * chosen data root into this file in the per-user local folder (beside the
+ * default Game/ folder: %LOCALAPPDATA%\Takedawn on Windows, the save folder
+ * elsewhere). Its first line is the folder; the rest is a note for whoever
+ * opens it. No file: the default. */
+#define LOCATION_FILE "data-folder.txt"
+
+static int location_file(char *out, unsigned n)
+{
+    char base[1024];
+
+#if defined(__ANDROID__)
+    (void)base; (void)out; (void)n;
+    return 0;                           /* the app's own folder, always */
+#else
+    if (!user_dir_now(RECOMP_DIR_LOCAL, base, sizeof base))
+        return 0;
+    return snprintf(out, n, "%s/" LOCATION_FILE, base) < (int)n;
+#endif
+}
+
+static int is_sep(char c) { return c == '/' || c == '\\'; }
+
+/* Without the separators at its end, but "/" and "C:\" stay whole. */
+static void trim_path(char *p)
+{
+    size_t n = strlen(p);
+
+    while (n > 0 && (p[n - 1] == ' ' || p[n - 1] == '\t'))
+        p[--n] = 0;
+    while (n > 1 && is_sep(p[n - 1]) && !(n == 3 && p[1] == ':'))
+        p[--n] = 0;
+}
+
+/* Two names of the same folder, as far as the text says: the separators and,
+ * on Windows and macOS, the case do not count. */
+static int same_path(const char *a, const char *b)
+{
+    char x[1100], y[1100];
+    size_t i;
+
+    snprintf(x, sizeof x, "%s", a);
+    snprintf(y, sizeof y, "%s", b);
+    trim_path(x);
+    trim_path(y);
+    for (i = 0; x[i] && y[i]; i++) {
+        char c = x[i], d = y[i];
+        if (is_sep(c) && is_sep(d))
+            continue;
+#if defined(_WIN32) || defined(__APPLE__)
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        if (d >= 'A' && d <= 'Z') d = (char)(d - 'A' + 'a');
+#endif
+        if (c != d)
+            return 0;
+    }
+    return x[i] == y[i];
+}
+
+static int dir_exists(const char *p)
+{
+    struct stat st;
+    return stat(p, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR;
+}
+
+/* The saved folder; 0 when there is none (no file, an empty first line). */
+static int saved_root(char *out, unsigned n)
+{
+    char file[1100], line[1100], *p;
+    size_t len;
+    FILE *f;
+
+    if (!location_file(file, sizeof file) || !(f = fopen(file, "rb")))
+        return 0;
+    len = fread(line, 1, sizeof line - 1, f);
+    fclose(f);
+    line[len] = 0;
+    p = line;
+    if ((unsigned char)p[0] == 0xEF && (unsigned char)p[1] == 0xBB && (unsigned char)p[2] == 0xBF)
+        p += 3;                         /* a byte order mark from an editor */
+    p[strcspn(p, "\r\n")] = 0;
+    while (*p == ' ' || *p == '\t')
+        p++;
+    trim_path(p);
+    if (!*p)
+        return 0;
+    snprintf(out, n, "%s", p);
+    return 1;
+}
+
+static int make_dirs(const char *path)
+{
+    char p[1100];
+    size_t i;
+
+    snprintf(p, sizeof p, "%s", path);
+    for (i = 1; p[i]; i++) {
+        if (!is_sep(p[i]) || (i == 2 && p[1] == ':'))
+            continue;
+        p[i] = 0;
+#if defined(_WIN32)
+        _mkdir(p);
+#else
+        mkdir(p, 0755);
+#endif
+        p[i] = '/';
+    }
+#if defined(_WIN32)
+    _mkdir(p);
+#else
+    mkdir(p, 0755);
+#endif
+    return dir_exists(p);
+}
+
+/* `dest` as a whole path: the working directory in front of a relative one. */
+static void absolute_path(const char *dest, char *out, unsigned n)
+{
+#if defined(_WIN32)
+    if (!_fullpath(out, dest, n))
+        snprintf(out, n, "%s", dest);
+#else
+    char cwd[1024];
+
+    if (dest[0] != '/' && getcwd(cwd, sizeof cwd))
+        snprintf(out, n, "%s/%s", cwd, dest);
+    else
+        snprintf(out, n, "%s", dest);
+#endif
+    trim_path(out);
+}
+
+/* --install --remember: from now on the game looks in `dest`. The default
+ * root removes the file. 1 when done; else 0 with the reason in `why`. */
+static int location_save(const char *dest, char *saved, unsigned saved_n, char *why, unsigned why_n)
+{
+    char file[1100], def[1024], base[1024];
+    FILE *f;
+
+    absolute_path(dest, saved, saved_n);
+    if (!location_file(file, sizeof file)) {
+        snprintf(why, why_n, "There is no per-user folder to keep the choice in.");
+        return 0;
+    }
+    default_root(def, sizeof def);
+    if (same_path(saved, def)) {
+        if (remove(file) != 0 && errno != ENOENT) {
+            snprintf(why, why_n, "%s could not be removed: %s", file, strerror(errno));
+            return 0;
+        }
+        saved[0] = 0;
+        return 1;
+    }
+    snprintf(base, sizeof base, "%s", file);
+    base[strlen(base) - strlen("/" LOCATION_FILE)] = 0;
+    if (!make_dirs(base) || !(f = fopen(file, "wb"))) {
+        snprintf(why, why_n, "%s could not be written: %s", file, strerror(errno));
+        return 0;
+    }
+    fprintf(f, "%s\n"
+               "# The folder of %s's game data, chosen in the setup window. The game\n"
+               "# reads the first line. Delete this file to use the default folder.\n",
+            saved, BO3_APP_NAME);
+    if (fclose(f) != 0) {
+        snprintf(why, why_n, "%s could not be written: %s", file, strerror(errno));
+        return 0;
+    }
+    return 1;
+}
+
 /* ── the setup window ──────────────────────────────────────────────── */
 
 #if defined(_WIN32)
@@ -323,7 +497,7 @@ static void setup_open(const char *root, int named)
     args[n++] = prog;
     args[n++] = (char *)"--program";
     args[n++] = (char *)self;
-    if (named) {                        /* --data / TAKEDAWN_DATA: the same root */
+    if (named == 1) {                   /* --data / TAKEDAWN_DATA: the same root */
         args[n++] = (char *)"--dest";
         args[n++] = (char *)root;
     }
@@ -348,7 +522,7 @@ static void setup_open(const char *root, int named)
 
     if (!setup_program(prog, sizeof prog) || !self[0])
         return;
-    if (named)
+    if (named == 1)
         snprintf(cmd, sizeof cmd, "\"%s\" --program \"%s\" --dest \"%s\"", prog, self, root);
     else
         snprintf(cmd, sizeof cmd, "\"%s\" --program \"%s\"", prog, self);
@@ -511,9 +685,11 @@ static int setup_needed(const char *code, const char *why, const char *source, c
 
 enum { DATA_OK, DATA_CHECKOUT, DATA_MISSING };
 
-/* The root the game would use (case 2, 3 or 4 of install.h) and its state.
- * `code`, `why` and `source` (the --install arguments that would mend it)
- * are filled for DATA_MISSING, `mark` for DATA_OK. */
+/* The root the game would use (cases 2 to 5 of install.h) and its state.
+ * `named`: 1 for --data or TAKEDAWN_DATA, 2 for the folder the player chose
+ * (data-folder.txt), 0 for the default. `code`, `why` and `source` (the
+ * --install arguments that would mend it) are filled for DATA_MISSING,
+ * `mark` for DATA_OK. */
 static int data_state(const char *data_arg, char *root, unsigned root_n, int *named,
                       xr_install_marker *mark, const char **code, char *why, unsigned why_n,
                       char *source, unsigned source_n)
@@ -531,6 +707,8 @@ static int data_state(const char *data_arg, char *root, unsigned root_n, int *na
     } else if (file_exists(GAME_DIR "/default.xbe")) {
         snprintf(root, root_n, ".");
         return DATA_CHECKOUT;           /* a checkout: the data is where we stand */
+    } else if (saved_root(root, root_n)) {
+        *named = 2;                     /* the folder chosen in the setup window */
     } else {
         default_root(root, root_n);
         *named = 0;
@@ -544,6 +722,10 @@ static int data_state(const char *data_arg, char *root, unsigned root_n, int *na
         snprintf(why, why_n, "There are game files in %s, but this program has not checked "
                  "them. Installing from that folder checks them in place; nothing is copied.",
                  root);
+    } else if (!xr_install_marker_read(root, mark) && *named == 2 && !dir_exists(root)) {
+        snprintf(why, why_n, "The folder chosen for the game's data, %s, is not there. If it is "
+                 "on a drive that is not connected, connect it and start %s again, or choose "
+                 "another folder in the setup window.", root, BO3_APP_NAME);
     } else if (!xr_install_marker_read(root, mark)) {
         snprintf(why, why_n, "The game's data is not installed in %s.", root);
     } else if (strcmp(mark->manifest, BO3_MANIFEST_ID)) {
@@ -595,7 +777,8 @@ int bo3_data_enter(const char *data_arg, int xbe_named, int flags)
         }
         if (!quiet)
             XR_NOTICE( "[DATA] root: %s (%s; installed by %s, manifest %s)\n", root,
-                    named ? "named" : "the per-user folder", mark.version, mark.manifest);
+                    named == 1 ? "named" : named == 2 ? "the chosen folder, " LOCATION_FILE
+                    : "the per-user folder", mark.version, mark.manifest);
         return 0;
     default:
         break;
@@ -605,7 +788,7 @@ int bo3_data_enter(const char *data_arg, int xbe_named, int flags)
 
 int bo3_data_status_main(int argc, char **argv)
 {
-    char root[1024], why[1400], source[1200];
+    char root[1024], why[1400], source[1200], def[1024];
     const char *code, *data_arg = NULL;
     xr_install_marker mark;
     int named, i, state;
@@ -615,14 +798,19 @@ int bo3_data_status_main(int argc, char **argv)
             data_arg = argv[++i];
     state = data_state(data_arg, root, sizeof root, &named, &mark, &code, why, sizeof why, source,
                        sizeof source);
+    default_root(def, sizeof def);
     XR_OUT("PROTOCOL 1\nPLAN data\n"
            "LOG data root %s\n"
+           "LOG data place %s\n"
+           "LOG data default %s\n"
            "LOG data disc %s, %s\n"
            "LOG data files %u\n"
            "LOG data bytes %llu\n"
            "LOG data free-needed %llu\n"
            "LOG data version %s\n",
-           root, k_manifest.title, k_manifest.build, k_manifest.count,
+           root, state == DATA_CHECKOUT ? "checkout" : named == 1 ? "named"
+                 : named == 2 ? "saved" : "default", def,
+           k_manifest.title, k_manifest.build, k_manifest.count,
            (unsigned long long)xr_manifest_bytes(&k_manifest), (unsigned long long)FREE_NEEDED,
            bo3_version_line());
     {
@@ -746,7 +934,11 @@ static int install_usage(void)
         "  xiso, or a redump with the video partition) or a folder extracted from one.\n"
         "  Only %s, %s is accepted; every file is\n"
         "  checked against the disc's manifest (%u files, %.2f GB).\n"
-        "  --dest <dir>   where to (default: TAKEDAWN_DATA, else the per-user folder)\n"
+        "  --dest <dir>   where to (default: TAKEDAWN_DATA, else the folder chosen\n"
+        "                 before, else the per-user folder)\n"
+        "  --remember     the game uses <dir> from now on, with no --data: written to\n"
+        "                 " LOCATION_FILE " in the per-user folder (the default folder\n"
+        "                 removes it)\n"
         "  --check        only say what the disc is; nothing is written\n"
         "  stdout is the installer's line protocol:\n"
         "    PROTOCOL 1 / PLAN disc / STEP disc BEGIN|OK|SKIP|FAIL ... /\n"
@@ -765,7 +957,7 @@ int bo3_install_main(int argc, char **argv)
     xr_install_opts o;
     xr_install_result r;
     time_t t0 = time(NULL);
-    int i, check = 0;
+    int i, check = 0, remember = 0;
 
     for (i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "--dest") && i + 1 < argc)
@@ -779,6 +971,8 @@ int bo3_install_main(int argc, char **argv)
             i++;
         } else if (!strcmp(argv[i], "--check"))
             check = 1;
+        else if (!strcmp(argv[i], "--remember"))
+            remember = 1;
         else if (argv[i][0] == '-' || source)
             return install_usage();
         else
@@ -810,7 +1004,7 @@ int bo3_install_main(int argc, char **argv)
         snprintf(dest, sizeof dest, "%s", dest_arg);
     else if (env && *env)
         snprintf(dest, sizeof dest, "%s", env);
-    else
+    else if (!saved_root(dest, sizeof dest))
         default_root(dest, sizeof dest);
     snprintf(s_cancel_file, sizeof s_cancel_file, "%s/install.cancel", dest);
     remove(s_cancel_file);              /* one left by an earlier run */
@@ -843,6 +1037,21 @@ int bo3_install_main(int argc, char **argv)
     out("LOG " STEP " source %s", source);
     if (!check)
         out("LOG " STEP " destination %s", dest);
+    if (remember && !check) {
+        /* Before the copy: a run that stops half way is resumed there, and
+         * the next start opens the setup window on that folder. */
+        char saved[1100], why[1400];
+        if (!location_save(dest, saved, sizeof saved, why, sizeof why)) {
+            out("STEP " STEP " FAIL write-failed The game could not keep the folder chosen for its "
+                "data. %s", why);
+            out("RESULT FAIL " STEP " write-failed");
+            return 1;
+        }
+        if (saved[0])
+            out("LOG " STEP " remembered: the game uses %s from now on", saved);
+        else
+            out("LOG " STEP " remembered: the game uses its default folder");
+    }
     xr_install(&o, &r);
     remove(s_cancel_file);
     if (r.code != XR_INSTALL_OK) {

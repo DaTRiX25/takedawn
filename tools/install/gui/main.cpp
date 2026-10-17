@@ -3,6 +3,8 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QProcess>
+#include <QRegularExpression>
+#include <QScreen>
 #include <QTextStream>
 #include <QTimer>
 
@@ -19,6 +21,7 @@
 #endif
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 #include "app_icon.h"
 #include "installer_window.h"
@@ -245,6 +248,27 @@ int main(int argc, char** argv) {
 
   InstallerWindow window(config);
   if (wanted.isValid()) window.resize(wanted);
+  // RECOMP_DEBUG=window_display=<n>, as the game takes it: the window opens centred on
+  // display n (0 = the main one), and Play hands the same setting on to the game. For
+  // tests on a machine with more than one display.
+  for (const QString& item : qEnvironmentVariable("RECOMP_DEBUG").split(QRegularExpression("[,; ]"), Qt::SkipEmptyParts)) {
+    if (!item.startsWith("window_display=")) continue;
+    QList<QScreen*> screens = QGuiApplication::screens();
+    if (QScreen* main = QGuiApplication::primaryScreen()) {
+      screens.removeAll(main);
+      screens.prepend(main);
+    }
+    const int n = item.mid(int(strlen("window_display="))).toInt();
+    if (n >= 0 && n < screens.size()) {
+      const QRect area = screens[n]->availableGeometry();
+      QRect frame(QPoint(), window.size().boundedTo(area.size()));
+      frame.moveCenter(area.center());
+      window.setGeometry(frame);
+      if (qEnvironmentVariableIntValue("TAKEDAWN_SETUP_TRACE")) {
+        QTextStream(stderr) << "[SETUP] display " << n << ": " << screens[n]->name() << Qt::endl;
+      }
+    }
+  }
   if (parser.isSet(show_grab)) {
     // The one on-screen start test of the real platform plugin: up, grabbed, gone.
     if (couch && !wanted.isValid()) window.showFullScreen();

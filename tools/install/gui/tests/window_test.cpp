@@ -435,7 +435,7 @@ class WindowTest : public QObject {
     QTRY_COMPARE(w->phase_, PH::Idle);
     QVERIFY(w->shaders_box_->isChecked());
     QVERIFY(w->shaders_box_->text().startsWith("Prepare graphics for smooth first races"));
-    QVERIFY(w->shaders_box_->text().contains("about 2 minutes"));
+    QVERIFY(w->shaders_box_->text().contains("a few seconds"));
     QVERIFY(!w->shaders_box_->text().contains("shader", Qt::CaseInsensitive));
     Choose(w, "good.iso", DS::Valid);
     w->primary_->click();
@@ -761,6 +761,157 @@ class WindowTest : public QObject {
     qputenv("HOME", old_home);
     qunsetenv("TAKEDAWN_STEAM_COMMAND");
 #endif
+  }
+
+  // ---- where the data goes (BO-197)
+
+  // A second window over the same roots, as the next start of the game would open it.
+  InstallerWindow* Reopen() {
+    w_.reset();
+    LaunchConfig config;
+    config.program = QCoreApplication::applicationDirPath() + "/fake_installer";
+    config.test = true;
+    config.shaders = shaders_;
+    w_ = std::make_unique<InstallerWindow>(config);
+    w_->setAttribute(Qt::WA_DontShowOnScreen);
+    w_->show();
+    return w_.get();
+  }
+
+  QString Saved() const {
+    QFile f(root_ + ".location");
+    return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()).trimmed() : QString();
+  }
+
+  void changeInstallsThereAndIsRemembered() {
+    InstallerWindow* w = Make();
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QVERIFY(w->change_->isVisible());
+    QVERIFY(w->change_->isEnabled());
+    QVERIFY(!w->reset_->isVisible());  // at the default already
+    const QString other = tmp_->path() + "/Other drive/Games";
+    QVERIFY(QDir().mkpath(other));
+    QVERIFY(w->SetDest(other));  // empty: used as it is
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QCOMPARE(w->data_root_, QDir::cleanPath(other));
+    QVERIFY(w->dest_label_->FullText().contains("Other drive"));
+    QVERIFY(w->reset_->isVisible());
+    QCOMPARE(w->data_place_, QString("default"));  // where the game looks by itself has not changed yet
+    Choose(w, "Burnout 3 - Takedown (USA).iso", DS::Valid);
+    w->primary_->click();
+    QTRY_COMPARE_WITH_TIMEOUT(w->phase_, PH::Done, 20000);
+    QVERIFY(w->last_command_.contains("--remember"));
+    QVERIFY(QFileInfo::exists(other + "/.complete"));
+    QVERIFY(!QFileInfo::exists(root_ + "/.complete"));
+    QCOMPARE(Saved(), QDir::cleanPath(other));
+
+    // The next start: the game finds it there by itself.
+    w = Reopen();
+    QTRY_COMPARE(w->phase_, PH::Done);
+    QCOMPARE(w->data_place_, QString("saved"));
+    QCOMPARE(w->data_root_, QDir::cleanPath(other));
+    QVERIFY(w->reset_->isVisible());
+  }
+
+  void aFolderWithFilesGetsATakedawnFolder() {
+    InstallerWindow* w = Make();
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    const QString games = tmp_->path() + "/Games";
+    QVERIFY(QDir().mkpath(games + "/Something else"));
+    QVERIFY(w->SetDest(games));
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QCOMPARE(w->data_root_, QDir::cleanPath(games + "/Takedawn"));
+    QVERIFY(!QFileInfo::exists(games + "/Takedawn"));  // made by the install, not by choosing
+  }
+
+  // Data moved by hand: the folder is checked in place and kept, no disc.
+  void aFolderWithTheDataIsCheckedAndKept() {
+    InstallerWindow* w = Make();
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    const QString moved = tmp_->path() + "/Moved";
+    OldInstall(moved);
+    QFile done(moved + "/.complete");
+    QVERIFY(done.open(QIODevice::WriteOnly));
+    done.close();
+    QVERIFY(w->SetDest(moved + "/Burnout 3 Takedown"));  // the game's folder inside it: its root
+    QTRY_COMPARE_WITH_TIMEOUT(w->phase_, PH::Done, 20000);
+    QCOMPARE(w->data_root_, QDir::cleanPath(moved));
+    QVERIFY(w->last_command_.contains("--remember"));
+    QCOMPARE(Saved(), QDir::cleanPath(moved));
+  }
+
+  void defaultTakesTheChoiceBack() {
+    InstallerWindow* w = Make();
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    const QString other = tmp_->path() + "/Elsewhere";
+    QVERIFY(w->SetDest(other));
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    Choose(w, "Burnout 3 - Takedown (USA).iso", DS::Valid);
+    w->primary_->click();
+    QTRY_COMPARE_WITH_TIMEOUT(w->phase_, PH::Done, 20000);
+    QCOMPARE(Saved(), QDir::cleanPath(other));
+    w = Reopen();
+    QTRY_COMPARE(w->phase_, PH::Done);
+    QVERIFY(w->reset_->isVisible() && w->reset_->isEnabled());
+    w->reset_->click();
+    QTRY_COMPARE(w->phase_, PH::Idle);  // nothing at the default
+    QCOMPARE(w->data_root_, QDir::cleanPath(root_));
+    QVERIFY(!w->reset_->isVisible());
+    QVERIFY(!w->play_->isVisible());
+    Choose(w, "Burnout 3 - Takedown (USA).iso", DS::Valid);
+    w->primary_->click();
+    QTRY_COMPARE_WITH_TIMEOUT(w->phase_, PH::Done, 20000);
+    QVERIFY(QFileInfo::exists(root_ + "/.complete"));
+    QVERIFY(!QFileInfo::exists(root_ + ".location"));
+  }
+
+  // The saved folder is gone (a drive not connected, the data moved by hand): said, and
+  // Change... finds the data where it went.
+  void aSavedFolderThatIsGoneIsSaid() {
+    QString gone, moved;
+    InstallerWindow* w = Make([&](const QString& root) {
+      gone = QFileInfo(root).absolutePath() + "/../Unplugged/Takedawn";
+      moved = QFileInfo(root).absolutePath() + "/../Moved";
+      QDir().mkpath(QFileInfo(root).absolutePath());
+      QFile f(root + ".location");
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write(QDir::cleanPath(gone).toUtf8() + "\n");
+      OldInstall(moved);
+      QFile done(moved + "/.complete");
+      QVERIFY(done.open(QIODevice::WriteOnly));
+    });
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QCOMPARE(w->data_place_, QString("saved"));
+    QVERIFY(w->note_->isVisible());
+    QVERIFY(Plain(w->note_text_->text()).contains("is not there"));
+    QVERIFY(w->SetDest(moved));
+    QTRY_COMPARE_WITH_TIMEOUT(w->phase_, PH::Done, 20000);
+    QCOMPARE(Saved(), QDir::cleanPath(moved));
+  }
+
+  void notInsideTheProgramOrAFile() {
+    InstallerWindow* w = Make();
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QVERIFY(!w->SetDest(QCoreApplication::applicationDirPath() + "/data"));
+    QVERIFY(w->note_->isVisible());
+    QVERIFY(Plain(w->note_text_->text()).contains("program folder"));
+    QCOMPARE(w->data_root_, QDir::cleanPath(root_));
+    const QString file = tmp_->path() + "/a file";
+    QFile f(file);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.close();
+    QVERIFY(!w->SetDest(file, true));
+    QVERIFY(Plain(w->note_text_->text()).contains("is a file"));
+    QCOMPARE(w->data_root_, QDir::cleanPath(root_));
+  }
+
+  void namedRootHasNoChoice() {
+    const QString named = QDir::tempPath() + "/takedawn-named-" + QString::number(QCoreApplication::applicationPid());
+    InstallerWindow* w = Make({}, named);
+    QTRY_COMPARE(w->phase_, PH::Idle);
+    QVERIFY(!w->change_->isVisible());
+    QVERIFY(!w->reset_->isVisible());
+    QVERIFY(!w->SetDest(tmp_->path() + "/x"));
   }
 
   // The palette is the overlay's "game" table (toolkit src/overlay/overlay_ui.cpp).

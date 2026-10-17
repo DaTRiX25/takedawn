@@ -25,6 +25,7 @@
 #define _GNU_SOURCE
 #endif
 #include "shaderbuild.h"
+int bo3_pcache_manifest_present(void);          /* pcmanifest.c */
 #include "install.h"                    /* BO3_USER_DIR */
 
 #include <ctype.h>
@@ -305,14 +306,266 @@ static const xap_step k_crash[] = {
     { XAP_END, NULL, NULL, 0 }
 };
 
+/* ---- the coverage sweep (BO-208) ----------------------------------------------
+ *
+ * One visit per process: BO3_SWEEP="<mode>/<region>/<track>/<car>/<drive>"
+ * (tools/headless/sweep.sh runs a list of them, in parallel, each into a key
+ * list of its own, and pcache_keys.py merges the lists into the manifest).
+ *
+ *   mode     race, timeattack, roadrage (Single Event), crash, autorace and
+ *            autoroadrage (the title's AI drives for `drive` game seconds) (Junction Selection: `track`
+ *            is the junction, 1 = the first), splitrace, splitroadrage
+ *            (Multiplayer), garage (only the cars)
+ *   region   1 USA, 2 Europe, 3 Asia (0: the menu's Random)
+ *   track    the Track row's position (right presses from Random)
+ *   car      how many cars the garage is walked through (1: the first only)
+ *   drive    seconds the car is driven (at the scene's speed), default 20
+ *
+ * The steps are made here, in memory. Unlocked in memory (BO3_UNLOCK_ALL) so
+ * every region and track is in the menus; the scene plays a new profile that
+ * is never saved, as the pre-build's.
+ */
+#define SW_MAX 400
+static xap_step s_sw[SW_MAX];
+static char     s_sw_txt[SW_MAX][32];
+static int      s_sw_n;
+static char     s_sw_name[64] = "sweep";
+
+static const xap_step k_boot[] = { BOOT_TO_MENU, { XAP_END, NULL, NULL, 0 } };
+
+static void sw_add(xap_op op, const char *s, const char *s2, int n)
+{
+    xap_step *st;
+    if (s_sw_n >= SW_MAX - 1)
+        return;
+    st = &s_sw[s_sw_n];
+    st->op = op;
+    st->s = s;
+    st->s2 = s2;
+    st->n = n;
+    s_sw_n++;
+}
+
+/* A press, its text copied (the step keeps the pointer). */
+static void sw_press(const char *what, int flips)
+{
+    if (s_sw_n >= SW_MAX - 1)
+        return;
+    snprintf(s_sw_txt[s_sw_n], sizeof s_sw_txt[0], "%s", what);
+    sw_add(XAP_PRESS, s_sw_txt[s_sw_n], NULL, flips);
+}
+
+static void sw_presses(const char *what, int times, int flips)
+{
+    while (times-- > 0)
+        sw_press(what, flips);
+}
+
+
+/* mode "script": BO3_SWEEP=script and BO3_SWEEP_SCRIPT=<file>, one step a line
+ * (# to the end of the line is a comment):
+ *   boot                          the way to the main menu
+ *   press <pad> <flips>           e.g. press a:400 120 (docs: xbox_autoplay.h)
+ *   pressuntil <pad> <file> <n>   again every n flips until the title opens <file>
+ *   file <text> [flips]           wait for a file open containing <text>
+ *   race_tail | crash_tail        the chosen car, the load and a drive / a crash (as the visits)
+ *   sync | wait <flips> | anchor <flips> | mark <text> [thousandths] | end
+ * With BO3_SWEEP_SHOTS=1 every mark also dumps a frame to <work>/fb_flip_*.bmp. */
+static char s_sw_script_txt[SW_MAX][64];
+static int script_build(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    char line[256];
+    int k = 0;
+
+    if (!f)
+        return 0;
+    snprintf(s_sw_name, sizeof s_sw_name, "sweep script");
+    while (fgets(line, sizeof line, f) && s_sw_n < SW_MAX - 8) {
+        char a[64], b[64], c[64];
+        int n1 = 0, got, cam;
+        char *hash = strchr(line, '#');
+        if (hash)
+            *hash = 0;
+        a[0] = b[0] = c[0] = 0;
+        got = sscanf(line, "%63s %63s %63s %63s", a, b, c, s_sw_script_txt[k + 1]);
+        if (got < 1)
+            continue;
+        if (!strcmp(a, "boot") || !strcmp(a, "bootmain")) {
+            /* bootmain stops on the main menu, before Single Event is chosen */
+            const xap_step *q, *e = k_boot;
+            while (e->op != XAP_END)
+                e++;
+            if (!strcmp(a, "bootmain"))
+                e -= 2;
+            for (q = k_boot; q < e; q++)
+                sw_add(q->op, q->s, q->s2, q->n);
+        } else if (!strcmp(a, "press") && got >= 3) {
+            sw_press(b, atoi(c));
+        } else if (!strcmp(a, "pressuntil") && got >= 4) {
+            snprintf(s_sw_script_txt[k], 64, "%s", b);
+            snprintf(s_sw_script_txt[k + 2], 64, "%s", c);
+            sw_add(XAP_PRESS_UNTIL, s_sw_script_txt[k], s_sw_script_txt[k + 2],
+                   atoi(s_sw_script_txt[k + 1]));
+            k += 3;
+        } else if (!strcmp(a, "file") && got >= 2) {
+            snprintf(s_sw_script_txt[k], 64, "%s", b);
+            sw_add(XAP_WAIT_FILE, s_sw_script_txt[k++], NULL, got >= 3 ? atoi(c) : 0);
+        } else if (!strcmp(a, "race_tail") || !strcmp(a, "crash_tail")) {
+            /* From the last Select Car: the car chosen, the load, the intro, the drive. */
+            sw_add(XAP_PRESS_UNTIL, "a:400", "streamed.dat", 150);
+            sw_add(XAP_MARK, "track loaded", NULL, 450);
+            sw_add(XAP_WAIT_FILE, "tracks\\crash", NULL, 0);
+            sw_add(XAP_WAIT_ANCHOR, NULL, NULL, 300);
+            sw_add(XAP_MARK, "driving", NULL, 525);
+            if (a[0] == 'r') {
+                sw_add(XAP_PRESS, "rt:9000", NULL, 540);
+                for (cam = 0; cam < 5; cam++)
+                    sw_add(XAP_PRESS, "rt+y:300", NULL, 90);
+                sw_add(XAP_PRESS, "rt+a:6000", NULL, 370);
+                sw_add(XAP_PRESS, "rt+a+lleft:5000", NULL, 600);
+                sw_add(XAP_PRESS, "rt:4000", NULL, 250);
+                sw_add(XAP_PRESS, "start:300", NULL, 120);
+            } else {
+                sw_press("a:400", 60);
+                sw_add(XAP_PRESS, "rt:20000", NULL, 0);
+                sw_add(XAP_SYNC, NULL, NULL, 0);
+                sw_add(XAP_WAIT_FILE, "crash", NULL, 1500);
+                sw_add(XAP_MARK, "impact", NULL, 700);
+                sw_add(XAP_WAIT_ANCHOR, NULL, NULL, 900);
+            }
+            sw_add(XAP_MARK, "done", NULL, 1000);
+        } else if (!strcmp(a, "sync")) {
+            sw_add(XAP_SYNC, NULL, NULL, 0);
+        } else if (!strcmp(a, "wait") && got >= 2) {
+            sw_add(XAP_WAIT_FLIPS, NULL, NULL, atoi(b));
+        } else if (!strcmp(a, "anchor") && got >= 2) {
+            sw_add(XAP_WAIT_ANCHOR, NULL, NULL, atoi(b));
+        } else if (!strcmp(a, "mark") && got >= 2) {
+            snprintf(s_sw_script_txt[k], 64, "%s", b);
+            sw_add(XAP_MARK, s_sw_script_txt[k++], NULL, got >= 3 ? atoi(c) : 500 + (n1 = 0));
+        } else if (!strcmp(a, "end")) {
+            break;
+        }
+        if (k > SW_MAX - 8)
+            break;
+    }
+    fclose(f);
+    sw_add(XAP_END, NULL, NULL, 0);
+    return 1;
+}
+
+/* Builds the visit's steps from BO3_SWEEP. 1 if the spec is one. */
+static int sweep_build(const char *spec)
+{
+    char mode[24] = "";
+    int region = 1, track = 1, cars = 1, drive = 20, n, i;
+    const xap_step *b;
+
+    if (!strncmp(spec, "script", 6) && getenv("BO3_SWEEP_SCRIPT"))
+        return script_build(getenv("BO3_SWEEP_SCRIPT"));
+    n = sscanf(spec, "%23[a-z]/%d/%d/%d/%d", mode, &region, &track, &cars, &drive);
+    if (n < 1 || (!strcmp(mode, "") ))
+        return 0;
+    snprintf(s_sw_name, sizeof s_sw_name, "sweep %s", spec);
+    for (b = k_boot; b->op != XAP_END; b++)
+        sw_add(b->op, b->s, b->s2, b->n);
+    if (!strcmp(mode, "splitrace") || !strcmp(mode, "splitroadrage")) {
+        /* Multiplayer: two downs from Single Event (the cursor is on its
+         * Select Mode now: back out is not needed, the boot ends on Single
+         * Event's mode list, so this mode is reached from the main menu
+         * instead: see below). */
+        return 0;
+    }
+    if (!strcmp(mode, "crash")) {
+        sw_presses("down:200", 3, 30);              /* Crash */
+        sw_press("a:400", 120);                     /* Junction Selection */
+        sw_presses("down:200", track < 1 ? 1 : track, 30);
+    } else {
+        if (!strcmp(mode, "roadrage") || !strcmp(mode, "autoroadrage"))
+            sw_presses("down:200", 2, 30);
+        else if (!strcmp(mode, "timeattack"))
+            sw_presses("down:200", 1, 30);
+        else if (strcmp(mode, "race") && strcmp(mode, "garage") && strcmp(mode, "autorace")
+                 && strcmp(mode, "autoroadrage"))
+            return 0;
+        sw_press("a:400", 120);                     /* Select Options */
+        if (region > 0) {
+            sw_presses("right:200", region, 30);
+            sw_press("down:200", 30);
+            sw_presses("right:200", track, 30);
+        }
+    }
+    sw_add(XAP_PRESS_UNTIL, "a:400", "car1.bgv", 150);
+    sw_add(XAP_MARK, "garage", NULL, 295);
+    sw_add(XAP_WAIT_ANCHOR, NULL, NULL, 240);
+    for (i = 1; i < cars; i++)                      /* every car on its stand */
+        sw_press("right:200", 70);
+    if (!strcmp(mode, "garage")) {
+        sw_add(XAP_MARK, "garage: done", NULL, 1000);
+        sw_add(XAP_END, NULL, NULL, 0);
+        return 1;
+    }
+    /* The car: again every 150 flips until the track's file is opened (a press
+     * on a screen that is still sliding in is not taken; a run that logs a lot
+     * is slower in real time than in flips, where this shows). */
+    sw_add(XAP_PRESS_UNTIL, "a:400", "streamed.dat", 150);   /* the training film, the load */
+    sw_add(XAP_MARK, "track loaded", NULL, 450);
+    sw_add(XAP_WAIT_FILE, "tracks\\crash", NULL, 0);
+    sw_add(XAP_WAIT_ANCHOR, NULL, NULL, 300);       /* the intro camera, GO / the captions */
+    sw_add(XAP_MARK, "driving", NULL, 525);
+    if (!strcmp(mode, "crash")) {
+        sw_press("a:400", 60);                      /* the countdown */
+        sw_add(XAP_PRESS, "rt:20000", NULL, 0);
+        sw_add(XAP_SYNC, NULL, NULL, 0);
+        sw_add(XAP_WAIT_FILE, "crash", NULL, 1500);
+        sw_add(XAP_MARK, "impact", NULL, 700);
+        sw_add(XAP_WAIT_ANCHOR, NULL, NULL, 900);   /* the crash camera, the results */
+    } else if (!strncmp(mode, "auto", 4)) {
+        /* The title's own AI drives (RECOMP_DEBUG=autopilot=1): a long run of
+         * racing, takedowns and all, for `drive` seconds of the game's time. */
+        sw_add(XAP_WAIT_FLIPS, NULL, NULL, drive * 60);
+    } else {
+        int flips = drive * 60;
+        sw_add(XAP_PRESS, "rt:9000", NULL, flips > 900 ? 540 : flips / 2);
+        /* every view the Y button cycles through (chase near and far, bumper,
+         * the hood), each for a moment, the accelerator held */
+        for (i = 0; i < 5; i++)
+            sw_add(XAP_PRESS, "rt+y:300", NULL, 90);
+        sw_add(XAP_PRESS, "rt+a:6000", NULL, 370);  /* boost */
+        sw_add(XAP_MARK, "boost and a crash", NULL, 730);
+        sw_add(XAP_PRESS, "rt+a+lleft:5000", NULL, 600);    /* into the scenery */
+        sw_add(XAP_PRESS, "rt:4000", NULL, 250);
+        sw_add(XAP_PRESS, "start:300", NULL, 120);  /* the pause menu */
+    }
+    sw_add(XAP_MARK, "done", NULL, 1000);
+    sw_add(XAP_END, NULL, NULL, 0);
+    return 1;
+}
+
+/* BO-208: no scene to play. The shipped manifest's keys, and the vertex
+ * programs it names (found by hash in the player's own default.xbe, the
+ * ones D3D assembles itself too), are built by the backend's pre-warm in this
+ * process, in parallel; the title is only started far enough to bring the
+ * backend up (its first pictures, the logos) and left running until that is
+ * done (scene_done waits for it). */
+static const xap_step k_manifest[] = {
+    { XAP_WAIT_FILE, "englis30.xmv", NULL, 0 },
+    { XAP_MARK, "preparing graphics", NULL, 100 },
+    { XAP_WAIT_FLIPS, NULL, NULL, 120 },
+    { XAP_END, NULL, NULL, 0 }
+};
+
 static const struct scene {
     const char *name;
     const xap_step *steps;
     int secs;                           /* about how long it takes at SCENE_SPEED, for
                                          * the progress (the marks' thousandths too) */
+    int legacy;                         /* played only when named (--scenes), not by default */
 } k_scenes[] = {
-    { "race",  k_race,  30 },
-    { "crash", k_crash, 37 },
+    { "manifest", k_manifest, 5, 0 },
+    { "race",  k_race,  30, 1 },
+    { "crash", k_crash, 37, 1 },
 };
 #define NSCENES ((int)(sizeof k_scenes / sizeof k_scenes[0]))
 
@@ -468,6 +721,11 @@ static unsigned long long dir_bytes(const char *dir)
 #define SCENE_SPEED_TEXT "8"
 
 static const struct scene *s_scene;
+static char s_fb_env[1100], s_at_env[1200];
+static int s_shots;
+static char s_dumpat[1100];
+static int s_noseed;                    /* the manifest scene and the sweeps seed nothing from the executable */
+static int s_sweeping;                  /* BO-208: a coverage sweep visit: nothing seeded from the executable */
 static FILE *s_out;                     /* the build's pipe (our stdout as started) */
 static char  s_work[1024], s_pad[1100], s_cancel[1100];
 static pthread_mutex_t s_out_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -528,7 +786,7 @@ static void seed(void)
     size_t found, defs;
 
     nv2a_pcache_stat_get(&st);
-    if (s_seeded || !st.active || !s_xbe)
+    if (s_seeded || !st.active || !s_xbe || s_noseed)
         return;
     s_seeded = 1;
     if (!(f = fopen(s_xbe, "rb")))
@@ -552,6 +810,28 @@ static void scene_mark(void *ctx, const char *text, int thousandths)
 {
     (void)ctx;
     seed();
+    if (s_sweeping && s_shots) {
+        /* BO3_SWEEP_SHOTS=1: the frame three flips on is dumped (the backend
+         * reads the flip numbers from this file: RECOMP_FB_DUMP_AT=@file). */
+        FILE *df = fopen(s_dumpat, "a");
+        if (df) {
+            fprintf(df, "%u\n", (unsigned)(g_xbox_flip_count + 3));
+            fclose(df);
+        }
+    }
+    {
+        /* BO-208: the counters at each mark, so a run says what was compiled
+         * on the render thread between two of them (the acceptance check). */
+        nv2a_pcache_stat ps;
+        nv2a_pcache_stat_get(&ps);
+        fprintf(stderr, "[SWEEP] mark '%s' flip %u: ack-thread compiles so far %u vs + %u fs + %u"
+                " pipelines, pre-warm built %u + %u + %u\n", text ? text : "",
+                (unsigned)g_xbox_flip_count, ps.ack[0], ps.ack[1], ps.ack[2], ps.warmed[0],
+                ps.warmed[1], ps.warmed[2]);
+        say("SB ACK %u %u %u warmed %u %u %u flip %u '%s'", ps.ack[0], ps.ack[1], ps.ack[2],
+            ps.warmed[0], ps.warmed[1], ps.warmed[2], (unsigned)g_xbox_flip_count,
+            text ? text : "");
+    }
     say("SB MARK %d %s", thousandths, text ? text : "");
 }
 
@@ -576,7 +856,7 @@ static void scene_done(void *ctx, int ok, const char *why)
          * to disk after a pre-warm), and give it the flips to do so. */
         seed();
         nv2a_pcache_rescan();
-        for (i = 0; i < 600; i++) {
+        for (i = 0; i < 3000; i++) {
             nv2a_pcache_stat_get(&st);
             if (!st.warming)
                 break;
@@ -597,8 +877,8 @@ static void scene_done(void *ctx, int ok, const char *why)
                     (double)ts.dir_bytes / 1048576.0, idle ? "" : " (still working: cut short)");
         }
         nv2a_pcache_stat_get(&st);
-        say("SB KEYS %u %u %u ack %u %u %u max_us %u", st.listed[0], st.listed[1],
-            st.listed[2], st.ack[0], st.ack[1], st.ack[2], st.ack_max_us);
+        say("SB KEYS %u %u %u ack %u %u %u max_us %u warm_ms %u", st.listed[0], st.listed[1],
+            st.listed[2], st.ack[0], st.ack[1], st.ack[2], st.ack_max_us, st.warm_ms);
         say("SB DONE ok");
         fflush(NULL);
         exit(0);
@@ -630,6 +910,8 @@ static void *scene_tick(void *arg)
 #endif
         nv2a_pcache_stat_get(&st);
         say("SB TICK %u %u", (unsigned)g_xbox_flip_count, st.ack[0] + st.ack[1] + st.ack[2]);
+        if (st.hold_total)
+            say("SB WARM %u %u", st.hold_done, st.hold_total);
     }
     return NULL;
 }
@@ -685,6 +967,34 @@ int bo3_shaderbuild_scene_env(const char *scene)
     for (i = 0; i < NSCENES; i++)
         if (!strcmp(k_scenes[i].name, scene))
             s_scene = &k_scenes[i];
+    if (!strcmp(scene, "manifest"))
+        s_noseed = 1;
+    if (!strcmp(scene, "sweep") && getenv("BO3_SWEEP") && sweep_build(getenv("BO3_SWEEP"))) {
+        static struct scene sw;
+        sw.name = s_sw_name;
+        sw.steps = s_sw;
+        sw.secs = 60;
+        s_scene = &sw;
+        s_sweeping = 1;
+        s_noseed = 1;
+        if (!strncmp(getenv("BO3_SWEEP"), "auto", 4)) {
+            const char *dbg = getenv("RECOMP_DEBUG");
+            char buf[160];
+            snprintf(buf, sizeof buf, "%s%sautopilot=1", dbg ? dbg : "", dbg && *dbg ? "," : "");
+            put_env("RECOMP_DEBUG", buf);
+        }
+        put_env("BO3_UNLOCK_ALL", "1");
+        if (getenv("BO3_SWEEP_SHOTS") && work && *work) {
+            char fb[1100], at[1200];
+            s_shots = 1;
+            snprintf(s_dumpat, sizeof s_dumpat, "%s/dumpat.txt", work);
+            snprintf(fb, sizeof fb, "%s/fb_", work);
+            snprintf(at, sizeof at, "@%s", s_dumpat);
+            { FILE *z = fopen(s_dumpat, "w"); if (z) fclose(z); }
+            snprintf(s_fb_env, sizeof s_fb_env, "%s", fb);
+            snprintf(s_at_env, sizeof s_at_env, "%s", at);
+        }
+    }
     if (!s_scene || !work || !*work) {
         XR_ERROR( "--build-shaders-scene is started by --build-shaders\n");
         return 0;
@@ -717,7 +1027,8 @@ int bo3_shaderbuild_scene_env(const char *scene)
     }
     put_env("RECOMP_STDIO_LOG", NULL);
     put_env("RECOMP_PAD_SCRIPT", NULL);
-    put_env("RECOMP_FB_DUMP", NULL);
+    put_env("RECOMP_FB_DUMP", s_shots ? s_fb_env : NULL);
+    put_env("RECOMP_FB_DUMP_AT", s_shots ? s_at_env : NULL);
     put_env("RECOMP_HEADLESS", "1");
     put_env("RECOMP_SAVE_DIR", saves);
     put_env("RECOMP_SAVE_BACKUPS", "0");
@@ -824,6 +1135,7 @@ static int run_scene(const struct scene *sc, const char *work, double p0, double
     char cmd[2400], args[128], line[512], cancel[1200];
     FILE *f;
     int done = 0, last = -1;
+    double warm_f = 0;
 
     snprintf(cancel, sizeof cancel, "%s/cancel", work);
     snprintf(args, sizeof args, "--build-shaders-scene %s", sc->name);
@@ -838,14 +1150,30 @@ static int run_scene(const struct scene *sc, const char *work, double p0, double
         if (!strncmp(line, "SB MARK ", 8)) {
             char *text = NULL;
             th = (int)strtol(line + 8, &text, 10);
-            if (th != last) {
+            if (th != last && p0 + (p1 - p0) * (th / 1000.0) >= warm_f) {
                 last = th;
+                warm_f = p0 + (p1 - p0) * (th / 1000.0);
                 out("PROGRESS " STEP " %.3f %s", p0 + (p1 - p0) * (th / 1000.0),
                     text && *text == ' ' ? text + 1 : sc->name);
             }
+        } else if (!strncmp(line, "SB WARM ", 8)) {
+            unsigned d = 0, t = 0;
+            sscanf(line + 8, "%u %u", &d, &t);
+            if (t && d < t) {
+                char txt[64];
+                double f = p0 + (p1 - p0) * 0.9 * ((double)d / t);
+                snprintf(txt, sizeof txt, "Preparing graphics %u/%u", d, t);
+                if (f >= warm_f) {      /* never back: the marks have their own scale */
+                    warm_f = f;
+                    out("PROGRESS " STEP " %.3f %s", f, txt);
+                }
+            }
         } else if (!strncmp(line, "SB KEYS ", 8)) {
-            sscanf(line + 8, "%u %u %u ack %u %u %u max_us %u", &keys[0], &keys[1], &keys[2],
-                   &ack[0], &ack[1], &ack[2], &ack[3]);
+            unsigned wms = 0;
+            sscanf(line + 8, "%u %u %u ack %u %u %u max_us %u warm_ms %u", &keys[0], &keys[1], &keys[2],
+                   &ack[0], &ack[1], &ack[2], &ack[3], &wms);
+            if (wms > 1)
+                out("LOG " STEP " the graphics were built in %.1f s", wms / 1000.0);
         } else if (!strncmp(line, "SB SOFTWARE", 11)) {
             if (!*software) {
                 *software = 1;
@@ -940,7 +1268,9 @@ int bo3_shaderbuild_main(int argc, char **argv, const char *xbe_path)
         state_clear(work);
     for (i = 0; i < NSCENES; i++) {
         char fact[64];
-        int want = !only || (strstr(only, k_scenes[i].name) != NULL);
+        int want = only ? strstr(only, k_scenes[i].name) != NULL
+                        : (bo3_pcache_manifest_present() ? !strcmp(k_scenes[i].name, "manifest")
+                                                         : k_scenes[i].legacy);
         snprintf(fact, sizeof fact, "scene %s", k_scenes[i].name);
         if (!want)
             continue;
@@ -968,9 +1298,13 @@ int bo3_shaderbuild_main(int argc, char **argv, const char *xbe_path)
         /* The scenes' seconds are those of SCENE_SPEED; at real time they
          * take four times as long. */
         int secs = (secs_all - secs_done) * (speed && !strcmp(speed, "1") ? 4 : 1);
-        out("STEP " STEP " BEGIN Building shaders: the game plays %d scene%s by itself, without"
-            " a window or sound (about %d minute%s)", todo, todo == 1 ? "" : "s",
-            (secs + 59) / 60, secs > 60 ? "s" : "");
+        if (!only && bo3_pcache_manifest_present())
+            out("STEP " STEP " BEGIN Preparing graphics: building every shader and pipeline the"
+                " game needs, without a window or sound (a few seconds)");
+        else
+            out("STEP " STEP " BEGIN Building shaders: the game plays %d scene%s by itself,"
+                " without a window or sound (about %d minute%s)", todo, todo == 1 ? "" : "s",
+                (secs + 59) / 60, secs > 60 ? "s" : "");
     }
     out("LOG " STEP " cache %s", cdir);
     snprintf(path, sizeof path, "%s/cancel", work);
@@ -985,7 +1319,9 @@ int bo3_shaderbuild_main(int argc, char **argv, const char *xbe_path)
         double p0, p1;
         int rc, tries;
         snprintf(fact, sizeof fact, "scene %s", sc->name);
-        if ((only && !strstr(only, sc->name)) || state_has(work, fact))
+        if ((only ? !strstr(only, sc->name)
+                  : (bo3_pcache_manifest_present() ? strcmp(sc->name, "manifest") : !sc->legacy))
+                || state_has(work, fact))
             continue;
         p0 = (double)secs_done / secs_all;
         p1 = (double)(secs_done + sc->secs) / secs_all;
@@ -1120,6 +1456,10 @@ static int host_start(void)
     pthread_mutex_unlock(&s_host_mu);
     snprintf(cancel, sizeof cancel, "%s/cancel", s_host_work);
     remove(cancel);
+    /* BO-110: the HDR variants too, only where they can be used: the
+     * display can show HDR (the Graphics page has the row) or HDR is on. */
+    put_env("RECOMP_PCACHE_HDR",
+            nv2a_host_hdr_potential() > 1.0f || nv2a_host_hdr_active() ? "1" : NULL);
     if (pthread_create(&th, NULL, host_run, NULL) != 0) {
         host_set(XBOX_SHADERS_FAILED, 0, "could not start the build");
         return 0;

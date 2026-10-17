@@ -328,6 +328,12 @@ void DiscBrowser::SetPlaces(const QList<discs::Place>& places) { places_ = place
 
 void DiscBrowser::SetNativeOffered(bool offered) { native_->setVisible(offered); }
 
+void DiscBrowser::SetFolderMode(bool on) {
+  folder_mode_ = on;
+  title_->setText(on ? tr("Choose where to install the game's data") : tr("Choose your game disc"));
+  empty_->setText(on ? tr("No folders here.") : tr("No folders and no disc images (.iso) here."));
+}
+
 void DiscBrowser::Open(const QString& folder) {
   if (!folder.isEmpty() && QFileInfo(folder).isDir()) ShowFolder(QDir::cleanPath(folder));
   else ShowPlaces();
@@ -363,7 +369,8 @@ QListWidgetItem* DiscBrowser::AddRow(Kind kind, const QString& text, const QStri
 void DiscBrowser::ShowPlaces() {
   folder_.clear();
   list_->clear();
-  where_->SetFullText(tr("Where is the disc image (.iso) or the folder with the disc's files?"));
+  where_->SetFullText(folder_mode_ ? tr("Where should the game's data go? It needs about 3 GB.")
+                                   : tr("Where is the disc image (.iso) or the folder with the disc's files?"));
   for (const discs::Place& p : places_) AddRow(KindPlace, p.label, p.path, QDir::toNativeSeparators(p.path));
   empty_->setVisible(list_->count() == 0);
   if (list_->count() > 0) list_->setCurrentRow(0);
@@ -375,7 +382,9 @@ void DiscBrowser::ShowFolder(const QString& folder_in, const QString& select_in)
   folder_ = folder;
   list_->clear();
   where_->SetFullText(QDir::toNativeSeparators(folder));
-  if (discs::IsDiscFolder(folder)) {
+  if (folder_mode_) {
+    AddRow(KindUseFolder, tr("Install here"), folder, QString());
+  } else if (discs::IsDiscFolder(folder)) {
     AddRow(KindUseFolder, tr("Use this folder"), folder, tr("it has the disc's files (default.xbe)"));
   }
   AddRow(KindUp, tr("Up one folder"), QString());
@@ -383,18 +392,18 @@ void DiscBrowser::ShowFolder(const QString& folder_in, const QString& select_in)
   int content = 0;
   QListWidgetItem* selected = nullptr;
   for (const QFileInfo& e : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase)) {
-    const bool disc = discs::IsDiscFolder(e.absoluteFilePath());
+    const bool disc = !folder_mode_ && discs::IsDiscFolder(e.absoluteFilePath());
     QListWidgetItem* item = AddRow(disc ? KindDiscFolder : KindFolder, e.fileName(), e.absoluteFilePath(),
                                    disc ? tr("disc files: choose") : QString());
     if (e.absoluteFilePath() == select) selected = item;
     ++content;
   }
   for (const QFileInfo& e : dir.entryInfoList(QDir::Files, QDir::Name | QDir::IgnoreCase)) {
-    if (!discs::IsImageName(e.fileName())) continue;
+    if (folder_mode_ || !discs::IsImageName(e.fileName())) continue;
     AddRow(KindImage, e.fileName(), e.absoluteFilePath(), discs::Size(e.size()));
     ++content;
   }
-  empty_->setVisible(content == 0 && !discs::IsDiscFolder(folder));
+  empty_->setVisible(content == 0 && !folder_mode_ && !discs::IsDiscFolder(folder));
   // On what can be chosen when there is such a row, else where one came from.
   int row = 0;
   if (selected) {

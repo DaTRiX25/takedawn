@@ -39,8 +39,9 @@
 # a development build and a release do not replace each other.
 #
 # versionName is VERSION's first line; versionCode is
-# major * 10 000 000 + minor * 100 000 + patch * 1 000 + build, so every
-# release is above the one before and a rebuild of one can be told apart.
+# major * 10 000 000 + minor * 100 000 + patch * 1 000 + build (0..99), so
+# every release is above the one before and a rebuild of one can be told
+# apart; a pre-release (x.y.z-beta) is 900 below x.y.z (see below).
 #
 # The program's code (src/game/recomp/gen, from regen.sh) is compiled into
 # libmain.so. The game data is not in the APK: the first start installs it
@@ -99,9 +100,18 @@ mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/dex" "$OUT/pack/lib/$ABI" "$HERE/out"
 echo "== resources and manifest ($(basename "$BT"), $(basename "$PLATFORM"))"
 "$BT/aapt2" compile --dir "$HERE/android/res" -o "$OUT/res.zip"
 VNAME="$(head -1 "$HERE/VERSION" | tr -d '[:space:]')"
-[[ "$VNAME" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || { echo "VERSION: $VNAME is not major.minor.patch" >&2; exit 1; }
+[[ "$VNAME" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.]+)?$ ]] || { echo "VERSION: $VNAME is not major.minor.patch[-pre-release]" >&2; exit 1; }
 VBUILD="${TAKEDAWN_ANDROID_BUILD:-0}"
+[ "$VBUILD" -ge 0 ] && [ "$VBUILD" -le 99 ] || { echo "TAKEDAWN_ANDROID_BUILD: 0..99" >&2; exit 1; }
 VCODE=$(( BASH_REMATCH[1] * 10000000 + BASH_REMATCH[2] * 100000 + BASH_REMATCH[3] * 1000 + VBUILD ))
+# A pre-release (0.1.2-beta) is numbered after every build of the release
+# before it and before every build of its own release: the patch before's
+# code + 100 (0.1.2-beta: 101100 + build; 0.1.1 builds are 101000..101099,
+# 0.1.2's 102000..102099). A patch-0 pre-release (0.2.0-beta) takes the
+# minor before's last patch slot the same way.
+if [ -n "${BASH_REMATCH[4]}" ]; then
+    VCODE=$(( VCODE - 900 ))
+fi
 MANIFEST_ID="$(sed -n 's/^# id //p' "$HERE/config/disc/ntsc-u-retail.manifest" | head -1)"
 [ -n "$MANIFEST_ID" ] || { echo "no id line in config/disc/ntsc-u-retail.manifest" >&2; exit 1; }
 echo "   Takedawn $VNAME, versionCode $VCODE, disc manifest $MANIFEST_ID"

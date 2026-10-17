@@ -1,10 +1,12 @@
 # Bloom and motion blur switches (`graphics.bloom`, `graphics.motion_blur`, BO-101)
 
 Both effects are the title's own, drawn by its code through extra render
-passes. Two settings switch them: overlay Graphics page, "Bloom" and "Motion
-blur"; `settings.toml` `[graphics] bloom` / `motion_blur`;
-`RECOMP_GFX_BLOOM=0`, `RECOMP_GFX_MOTION_BLUR=0`. Both default to on (the
-console's look) on every platform. Switching an effect off is an opt-in guest patch
+passes. Two settings set their strength: overlay Graphics page, "Bloom" and
+"Motion blur", sliders from 0 to 100% in steps of 10; `settings.toml`
+`[graphics] bloom` / `motion_blur` (0 to 1; the old `false` / `true` read as
+0 / 1); `RECOMP_GFX_BLOOM`, `RECOMP_GFX_MOTION_BLUR` (0 to 1). Both default to
+1, 100%, the console's look, on every platform; 0 is off (BO-212 made them
+strengths, they were switches). Switching an effect off is an opt-in guest patch
 (`config/patches.json`; toolkit `docs/pipeline/04-lifting.md`, Guest patches)
 that makes the title's own condition for drawing the effect read false, so
 the title takes its existing path for not drawing it. No draw call is
@@ -48,9 +50,9 @@ page (`sub_000FAC70`).
 
 | Setting | Site | The title's condition | Patched to |
 |---|---|---|---|
-| `graphics.bloom` = false | `0x001AE5AA` (stage view), `0x001AEA0D` (garage) | `MEM32(0x4D537C) == -1` before the bloom call | reads 0: the no-bloom path |
-| `graphics.bloom` = false | `0x0003DC3A`, `0x0003DC55` (BO-181) | the bloom Intensity (`[arg+4]`, the block's +0x54) that sets the weight of the bloom's last result in the frame pass | reads 0: weight 0 |
-| `graphics.motion_blur` = false | `0x00042AD5`, `0x001AE678`, `0x000FACD9` | the graphics manager's byte `MEM8(0x4D61D2)` (manager `0x4D6170` + 0x62) | reads 0: the blur-off path |
+| `graphics.bloom` = 0 | `0x001AE5AA` (stage view), `0x001AEA0D` (garage) | `MEM32(0x4D537C) == -1` before the bloom call | reads 0: the no-bloom path |
+| `graphics.bloom` = 0 | `0x0003DC3A`, `0x0003DC55` (BO-181) | the bloom Intensity (`[arg+4]`, the block's +0x54) that sets the weight of the bloom's last result in the frame pass | reads 0: weight 0 |
+| `graphics.motion_blur` = 0 | `0x00042AD5`, `0x001AE678`, `0x000FACD9` | the graphics manager's byte `MEM8(0x4D61D2)` (manager `0x4D6170` + 0x62) | reads 0: the blur-off path |
 
 `0x4D61D2` is one of seventeen on/off bytes the manager's constructor
 (`sub_0002F260`) sets to 1; nothing in the build writes it by address and no
@@ -64,6 +66,26 @@ The byte loads needed a patch kind, `load_u8` (toolkit
 `tools/recomp/patches.py`); the bloom sites are plain `load_u32`. With both
 settings on, `regen.sh` output differs from the unpatched build by the five
 gated statements only.
+
+## Strength between 0 and 100% (BO-212)
+
+The two effects are mixed over the picture by a number the title already
+holds, so a strength below 100% scales that number in the guest and the
+backends (Metal, Vulkan) do nothing special. While the setting is anything but
+1, the generated code multiplies the value the instruction loaded by the
+setting (`bloom_strength` / `blur_strength`, `src/game/main.c`); at 1 the
+patch does not run, so 100% is the title's code path as before. 0 is the
+off path above.
+
+| Effect | Site | The value | Times the strength |
+|---|---|---|---|
+| bloom | `0x0003DC3A`, `0x0003DC55` | the bloom Intensity (`[arg+4]`); the frame pass adds the bloom's last 160x120 target with the weight `Intensity x 0.5` (clamped at Intensity 2 to 1.0), handed to the combiners as the constant's alpha, so the glow added to the frame is out = 2 x (V + w x bloom) in the original | the weight, linear in the Intensity: 50% adds half the glow |
+| motion blur | `0x00041F76` (`fld dword ptr [esi+0x1C]` in `sub_00041EC0`) | the blur block's opacity; x 255 into the top byte of the four vertices' diffuse colour; the draw blends SRC_ALPHA / INV_SRC_ALPHA (sf 0x302 df 0x303) | the alpha: 50% mixes the blurred picture over the frame at half the title's opacity |
+
+The blur's site is an x87 `fld`, which the patcher's `load_f32` takes since
+BO-212 (toolkit `tools/recomp/patches.py`). The bloom's blur passes still
+run at any strength above 0; only the composite is weaker. The other blur
+(`sub_000461C0`, never reached in a run) and the front-end's stay on or off.
 
 ## Switching the bloom off while it shows (BO-181)
 
@@ -137,6 +159,42 @@ Two extras: `graphics.lod_bias` (`RECOMP_GFX_LOD_BIAS`; "auto" by default on the
 packaged desktop programs and the Steam Deck since 2026-10-12, off elsewhere)
 and `graphics.dither` (`RECOMP_GFX_DITHER`; off everywhere), described in the
 toolkit's `docs/runtime/overlay.md`.
+
+## Checked: the strengths (BO-212)
+
+Metal on the Mac and Vulkan (software, lavapipe, the release AppImage built
+from the same sources) on a Linux box, headless; the frame of
+`to_race.sh` at the rolling start (`race_start`, before any input of ours),
+first track of the USA list, one run a configuration; the Trax box masked.
+Builds: the heads before the change and with it, so the only difference is
+this work.
+
+- 100 %: the frame differs from the build before in about 1000 pixels (0.3 %)
+  on Metal, as two runs of the build before differ from each other (931);
+  the same on Vulkan (mean squared difference 0.2 to 5 between any two runs
+  of either build, 130 and up only where a run lands on another flip). The
+  generated code differs in three statements that do not run at 1: the
+  title's own path. Not byte for byte frame by frame: the scene is not
+  frame-exact from run to run (above). The garage's `garage_car` shot is
+  byte-identical in 4 of 4 runs of each build (it draws no visible effect).
+- 0 %: the same as the build before with the effect off (Metal 541 pixels
+  apart, Vulkan mean squared difference 2.4, both inside that noise).
+- 50 %: both effects at 50 % put the frame 53 % (Metal) and 51 % (Vulkan)
+  of the way between 0 and 100 % (the frame projected on the line through
+  the two); the blur alone 53 % on Metal. The bloom adds nothing
+  measurable to the rolling-start frame (the same finding as above), so its
+  linearity is the code's (the weight is Intensity x 0.5 x the strength), and
+  its steps are seen in the drive.
+- A drive (`tools/headless/strength_scene.sh`, `AUTOPILOT=1 CYCLE=240`):
+  frames at 100, 50 and 0 % five flips apart, bloom and blur in turn. The
+  radial streaks (gradient energy of the frame, 8 cycles) fall 100 > 50 > 0
+  with 50 % at 54 % of the way; the bloom's haze around the sun and lamps
+  steps with the setting by eye. The world moves a few metres between the
+  three frames.
+
+Not checked: the directional blur, 16:9 and ultrawide, render scales above 1,
+the overlay row on a real window (the settings are covered by the toolkit's
+`overlay_settings` test).
 
 ## Checked (Metal, headless, 4:3, render scale 1)
 

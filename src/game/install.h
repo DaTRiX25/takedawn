@@ -15,12 +15,16 @@
  *   3. the working directory, when it holds "Burnout 3 Takedown/default.xbe":
  *      a developer's checkout (and the Android app's files folder); no
  *      marker is asked for
- *   4. the per-user root, which must be a whole install:
+ *   4. the folder the player chose in the setup window (Change...): the
+ *      first line of data-folder.txt in the per-user local folder below
+ *      (%LOCALAPPDATA%\Takedawn on Windows, the save folder elsewhere),
+ *      written by --install --remember; it must be a whole install
+ *   5. the per-user root, which must be a whole install:
  *        macOS    ~/Library/Application Support/Takedawn/Game
  *        Linux    $XDG_DATA_HOME/takedawn/Game, else ~/.local/share/takedawn/Game
  *        Windows  %LOCALAPPDATA%\Takedawn\Game
  *
- * For 2 and 4 the root becomes the working directory, where the title and
+ * For 2, 4 and 5 the root becomes the working directory, where the title and
  * the shader pre-build expect the data. Without a whole install there the
  * title is not started: exit status BO3_EXIT_NO_DATA and, on stdout,
  *
@@ -40,8 +44,8 @@
  *
  * which asks for the disc, runs --install and starts the game again. Not
  * with --no-setup, --headless, RECOMP_HEADLESS or TAKEDAWN_NO_SETUP, not on
- * Linux without a display, and not where the window is not built (Windows
- * and Android for now): there the lines above and the status are the answer.
+ * Linux without a display, and not on Android (its own setup page): there
+ * the lines above and the status are the answer.
  */
 #ifndef BO3_INSTALL_H
 #define BO3_INSTALL_H
@@ -85,8 +89,9 @@ void bo3_user_dirs_names(void);
 /* The lines it printed ("" when nothing was moved), for the run log. */
 const char *bo3_user_dirs_notes(void);
 
-/* --install <image-or-folder> [--dest <dir>] [--check]; argv starts after
- * --install. Speaks the installer's line protocol; returns the exit status. */
+/* --install <image-or-folder> [--dest <dir>] [--remember] [--check]; argv
+ * starts after --install. --remember keeps <dir> as case 4 above. Speaks
+ * the installer's line protocol; returns the exit status. */
 int bo3_install_main(int argc, char **argv);
 
 /* Find the data (above) and go there. `xbe_named`: case 1. `data_arg`:
@@ -106,6 +111,8 @@ int bo3_data_enter(const char *data_arg, int xbe_named, int flags);
  * asks first. On stdout, in the installer's protocol:
  *
  *   LOG data root <dir>            LOG data files <n>
+ *   LOG data place named|saved|default|checkout   (case 2, 4, 5 or 3 above)
+ *   LOG data default <dir>         (case 5's root)
  *   LOG data disc <title, build>   LOG data bytes <n>
  *   LOG data version <line>        LOG data free-needed <bytes>
  *   STEP data OK <text> / RESULT OK <root>                      status 0

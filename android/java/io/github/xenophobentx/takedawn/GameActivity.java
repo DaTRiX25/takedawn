@@ -27,7 +27,8 @@ import org.libsdl.app.SDLActivity;
  *                         driver/              optional, a Vulkan driver to try (GpuDriver)
  *                         takedawn.log         the log (the one before: .1)
  *   XDG_DATA_HOME       the same directory (the save folder goes under it)
- *   XDG_CACHE_HOME      the app's cache directory (the shader cache)
+ *   XDG_CACHE_HOME      the app's cache directory (the scaled 2D art)
+ *   RECOMP_RENDER_SHADER_CACHE  files/graphics, the shader key lists and driver caches (BO-208)
  *   RECOMP_ANDROID_DRIVER_DIR / _NAME, RECOMP_ANDROID_LIB_DIR
  *                       the Vulkan driver to load in place of the device's
  *
@@ -54,6 +55,11 @@ public class GameActivity extends SDLActivity {
             Os.setenv("XDG_DATA_HOME", dir, true);
             Os.setenv("XDG_CACHE_HOME", getCacheDir().getAbsolutePath(), true);
             Os.setenv("HOME", getFilesDir().getAbsolutePath(), true);
+            // BO-208: the shader key lists, SPIR-V and the driver's pipeline caches
+            // are what the first start builds (a minute on a handheld); they live in
+            // the app's files, which the system does not empty, not in cache/.
+            // (The scaled 2D art stays in cache/, the toolkit's ui_scale store.)
+            Os.setenv("RECOMP_RENDER_SHADER_CACHE", new File(getFilesDir(), "graphics").getAbsolutePath(), true);
             Os.setenv("RECOMP_ANDROID_LIB_DIR", getApplicationInfo().nativeLibraryDir, true);
             java.util.Map<String, String> env = readEnvFile(new File(files, "env.txt"));
             // A test script's variables (tools/android/scene-launch.sh): their
@@ -431,6 +437,33 @@ public class GameActivity extends SDLActivity {
         Log.i(TAG, "window focus " + hasFocus);
         if (hasFocus) {
             immersive();
+            // After the layout pass that applies it: the insets are known then.
+            getWindow().getDecorView().post(new Runnable() {
+                @Override
+                public void run() {
+                    touchInsets();
+                }
+            });
+        }
+    }
+
+    // The on-screen controls keep out of the display cutout (a notch, a
+    // hole punch): its safe insets in pixels, for the runtime's touch layer
+    // (RECOMP_TOUCH_INSETS, read again while running).
+    private void touchInsets() {
+        android.view.WindowInsets wi = getWindow().getDecorView().getRootWindowInsets();
+        if (wi == null) {
+            return;
+        }
+        android.view.DisplayCutout dc = wi.getDisplayCutout();
+        String v = dc == null ? "0,0,0,0"
+                : dc.getSafeInsetLeft() + "," + dc.getSafeInsetTop() + ","
+                  + dc.getSafeInsetRight() + "," + dc.getSafeInsetBottom();
+        try {
+            Os.setenv("RECOMP_TOUCH_INSETS", v, true);
+            Log.i(TAG, "touch insets " + v);
+        } catch (Exception e) {
+            Log.w(TAG, "touch insets: " + e);
         }
     }
 

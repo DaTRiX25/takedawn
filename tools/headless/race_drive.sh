@@ -14,6 +14,10 @@
 # and GAME_PATH_PREFIX from that script's header); RECOMP_DEBUG goes to the
 # app with the run's other RECOMP_* variables.
 #
+#   RACE_REGION=r RACE_TRACK=t
+#                   the Region and Track rows' right presses (default 1 and 1:
+#                   USA, Silver Lake Southbound); with BO3_UNLOCK_ALL=1 every
+#                   region and track (BO-208: Europe is 2, its 15th is 2/15)
 #   RACES=n         race the same race n times (default 1): Continue on the
 #                   results, Retry, again; a soak (PICK=random: see below)
 #   RACE_STOP=file  with RACES: stop after the race in which the file appears
@@ -55,9 +59,9 @@ to_single_event
 read -r -a evs <<< "${EVENTS:-race}"
 if [ -z "${PICK:-}" ]; then
     press a:400 90              # Race: Select Options (Region, Track, Rivals)
-    press right:200 25          # Region: Random > USA
+    for (( k = 0; k < ${RACE_REGION:-1}; k++ )); do press right:200 25; done   # Region: Random > USA
     press down:200 20
-    press right:200 25          # Track: Random > Silver Lake Southbound
+    for (( k = 0; k < ${RACE_TRACK:-1}; k++ )); do press right:200 25; done    # Track: Random > Silver Lake Southbound
     press a:400 90              # Select Car
 else
     [ "$PICK" = random ] || die "PICK=$PICK: only PICK=random"

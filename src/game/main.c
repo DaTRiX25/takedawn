@@ -55,6 +55,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 #include <stdbool.h>
 #include <stdarg.h>
@@ -150,6 +151,7 @@ int recomp_dispatch_init(void);
 #include "platform/recomp_save_dir.h"
 #include "platform/recomp_instance.h"     /* one copy per save root (BO-129) */
 #include "kernel_saveguard.h"             /* saves replaced whole (BO-129) */
+#include "kernel_save_import.h"           /* --import-save: an original Xbox save (BO-209) */
 #if !defined(_WIN32) || defined(XBOXRECOMP_WIN_VULKAN)
 #define SDL_MAIN_HANDLED                  /* our own main(): no SDL_main rename, no SDL2main */
 #include <SDL.h>                          /* the "already running" box */
@@ -254,14 +256,91 @@ static int host_is_gamescope(void)
  * them fell behind the board. Their draws take a constant depth offset
  * toward the eye: 512 units of the 24-bit range, a few hundred more than
  * that noise and, at 60 m, about 20 cm. The same two textures (same bytes)
- * are in every US city, coast and mountain track. */
+ * are in US C3, M1 and P1; C1 has its own copies (BO-204, found by name in
+ * the tracks' static.dat and checked in drive-bys). */
 static void bo3_led_signs_init(void)
 {
     static const struct nv2a_texrep_zbias k_signs[] = {
         { "Chgo_AccidentSign_Words",  0xb993baaf1f3b5af5ull, 0x0C, 128, 128, -512.0f },
         { "Chgo_AccidentSign_Words2", 0xdf22c82ff01643bcull, 0x0C, 128, 128, -512.0f },
+        /* BO-204: the same signs on Waterfront (US C1_V1/_V2) are other bytes */
+        { "Chgo_AccidentSign_Words (C1)",  0xf7857dd943dd87efull, 0x0C, 128, 128, -512.0f },
+        { "Chgo_AccidentSign_Words2 (C1)", 0x789dc11b2c86ba3bull, 0x0C, 128, 128, -512.0f },
+        /* BO-204b: the Chicago LED word atlases of US M1 and P2 (Chgo_words/
+         * _words2; US C2 has its own copies, which do not flicker) and the
+         * Riviera chevron markers of EU C3: drive-bys with the textures
+         * tinted and the offsets toggled every flip */
+        { "Chgo_words",  0x690d64f43e926f3bull, 0x0C, 128, 256, -512.0f },
+        { "Chgo_words2", 0x71dfa2dae587dc99ull, 0x0C, 128, 256, -512.0f },
+        { "R_signals1 (EU C3)",       0x3b17abe4902f4996ull, 0x0C, 128, 128, -512.0f },
+        { "R_signals2 (EU C3)",       0x492b48f19fcad69aull, 0x0F, 128, 128, -512.0f },
+        { "R_lighthouse01 (EU C3)",   0x4c63134fa968c814ull, 0x0C, 128, 128, -512.0f },
+        { "R_Warning_Marker (EU C3)", 0x8004a89eada4b714ull, 0x0C, 128, 128, -512.0f },
     };
     nv2a_texrep_register_zbias(k_signs, sizeof k_signs / sizeof k_signs[0]);
+}
+
+/* BO-110: the title's light sprites drawn in a view's 3D, brighter with HDR
+ * on (nv2a_texrep_register_hdr_gain; SDR never reads it). Found with
+ * RECOMP_DEBUG=hdr,hdr_texlog in the pre-build's race scene (boost, a
+ * crash): additive (SRC_ALPHA, ONE) scene draws. The gain is in linear
+ * light, before the roll-off to the display's peak. */
+static void bo3_hdr_gains_init(void)
+{
+    static const struct nv2a_texrep_hdr_gain k_light[] = {
+        /* the boost's blue exhaust glow, and the orange exhaust flame strip */
+        { "boost exhaust glow",  0x4a67ab55aa789ec2ull, 0x0C, 64, 64, 2.5f, NV2A_HDR_GAIN_MUL },
+        { "exhaust flame",       0x3bda224676d2c0acull, 0x0F, 32, 8,  2.5f, NV2A_HDR_GAIN_MUL },
+        /* sunblob, ONE/ONE into the car's reflections: the paint's sun glints. Also drawn over
+         * walls, hedges and road reflections, so a small gain (BO-195: 1.5 to 1.2; HI mode's
+         * fixed knee of 0.6 would still lift most of this soft blob, median texel 0.68) */
+        { "sunblob",             0x547198130b4c6690ull, 0x0F, 128, 128, 1.2f, NV2A_HDR_GAIN_MUL },
+    };
+    nv2a_texrep_register_hdr_gain(k_light, sizeof k_light / sizeof k_light[0]);
+}
+
+/* BO-203: the sun's (and the moon's) 32x32 disc sprite, the one global
+ * 7e99c3527a07c692: white texels, alpha 1 out to r = 0.84 of its half width,
+ * one texel of ramp, then 0. It is drawn alpha-tested under the 13 additive
+ * corona quads, and the title's frame pass doubles the view: in HDR it is a
+ * flat plateau of ~600 nits with a hard edge, that takes the shape of any gap
+ * in the scenery (a square between houses); SDR clips it into the corona's
+ * white. With HDR on its colours are replaced by a radial profile and its
+ * alpha stays the title's: the title counts the fragments that pass its alpha
+ * test, probably an occlusion count, to size the corona's glare: with another
+ * alpha, or no test, the glare changed by a third or more (EU M1_V2 grid).
+ *
+ * out = a * C + (1 - a) * D, with the sprite's colour C = tint * rgb and D the
+ * sky under it. rgb = p + (1 - p) * rho gives out = D + p * (the old disc's
+ * out - D) when rho = D / C, the sky's share of the tint (about a fifth in
+ * daylight): the disc's centre as it was, falling smoothly to the sky at the
+ * rim, p = sqrt(1 - (r / 0.95)^2) (r in half widths; the title's alpha is full
+ * to 0.84 and ramps to 0 at 0.91). Tried at the EU grid, centre / ring in nits
+ * (the flat disc: 590 / 197): exponent 1.5, edge 0.84: 490 / 153; 0.5, 0.95:
+ * 557 / 175. The ring is down because the title's own bloom of the flat disc
+ * is.
+ * Another sky and tint only move the edge by a(rho' - rho) C, a few nits.
+ * Built here at start from the formula: nothing of the game is shipped; SDR
+ * never sees it. */
+static uint32_t s_sun_disc[32 * 32];
+static void bo3_hdr_sun_init(void)
+{
+    static const struct nv2a_texrep_rect k_all = { 0, 0, 32, 32 };
+    static const struct nv2a_texrep_variant k_var = { s_sun_disc, &k_all, 1, 1 /* colours only */ };
+    static const struct nv2a_texrep_tex k_tex[] = {
+        { "sun disc", 0x7e99c3527a07c692ull, 0x0F, 32, 32, &k_var, 1 },
+    };
+    const double rho = 0.2, edge = 0.95;
+    int x, y;
+    for (y = 0; y < 32; y++)
+        for (x = 0; x < 32; x++) {
+            double dx = x + 0.5 - 16.0, dy = y + 0.5 - 16.0;
+            double r = sqrt(dx * dx + dy * dy) / 16.0 / edge, p, c;
+            p = r >= 1.0 ? 0.0 : pow(1.0 - r * r, 0.5);
+            c = p + (1.0 - p) * rho;
+            s_sun_disc[y * 32 + x] = ((uint32_t)(c * 255.0 + 0.5) * 0x010101u);
+        }
+    nv2a_texrep_register_hdr_image(k_tex, sizeof k_tex / sizeof k_tex[0]);
 }
 
 /* Set a default for a runtime variable, leaving one the user set alone. The
@@ -803,6 +882,29 @@ static void hud_mon_start(void)
             s_hm_ntrace, s_hm_all ? ", all objects" : "");
 }
 
+/* graphics.bloom / graphics.motion_blur (RECOMP_GFX_BLOOM,
+ * RECOMP_GFX_MOTION_BLUR, BO-212): the strength 0..1 the patches' expressions
+ * ("loaded * bloom_strength", "loaded * blur_strength", config/patches.json)
+ * multiply the title's bloom weight / blur opacity by while the setting reads
+ * anything but 1. Unset or unreadable is 1: the title as it ships; the old
+ * spellings false / off read 0. docs/effects.md. */
+static double fx_strength(recomp_env_id id)
+{
+    const char *v = recomp_env(id);
+    char *end;
+    double d;
+
+    if (!v || !*v)
+        return 1.0;
+    d = strtod(v, &end);
+    if (end == v || *end)
+        return (!strcmp(v, "false") || !strcmp(v, "off")) ? 0.0 : 1.0;
+    return d < 0.0 ? 0.0 : d > 1.0 ? 1.0 : d;
+}
+
+static double bloom_strength(void) { return fx_strength(RENV_GFX_BLOOM); }
+static double blur_strength(void) { return fx_strength(RENV_GFX_MOTION_BLUR); }
+
 /* graphics.vehicle_detail (RECOMP_GFX_VEHICLE_DETAIL, BO-112): the factor on
  * the title's vehicle level-of-detail distances, read by the patches'
  * expression ("loaded * vehicle_lod_scale", config/patches.json) while the
@@ -861,7 +963,8 @@ static void scenery_props_dump(void)
 }
 
 /* BO3_FX_AT=<file>: a test aid for the two effect switches (BO-101,
- * docs/effects.md) and the crash camera rate (BO-111, docs/crash60.md).
+ * docs/effects.md; "bloom" and "blur" take a strength, 0..1, BO-212) and the
+ * crash camera rate (BO-111, docs/crash60.md).
  * Lines appended to the file, "<flip> bloom|blur|crash60 0|1" in
  * rising flip order, are taken at that flip (the "[GPU] flip N" number; a
  * flip already past: at once): graphics.bloom / graphics.motion_blur /
@@ -878,14 +981,17 @@ static void fx_at_flip(uint32_t flip)
     char line[64], what[16];
     unsigned at;
     int v;
+    double dv;
     FILE *f = fopen(s_fx_path, "r");
 
     if (!f)
         return;
     while (!fseek(f, s_fx_pos, SEEK_SET) && fgets(line, sizeof line, f)
            && strchr(line, '\n')
-           && sscanf(line, "%u %15s %d", &at, what, &v) == 3 && at <= flip) {
+           && sscanf(line, "%u %15s %lf", &at, what, &dv) == 3 && at <= flip) {
         int blur = !strcmp(what, "blur");
+
+        v = (int)dv;
 
         s_fx_pos = ftell(f);
         if (!strcmp(what, "crash60")) {     /* BO-111, docs/crash60.md */
@@ -942,17 +1048,21 @@ static void fx_at_flip(uint32_t flip)
         if (!blur && strcmp(what, "bloom"))
             continue;
 #ifdef XBOXRECOMP_HAVE_OVERLAY
-        xbox_SettingSet(blur ? XS_GRAPHICS_MOTION_BLUR : XS_GRAPHICS_BLOOM, v != 0);
+        xbox_SettingSet(blur ? XS_GRAPHICS_MOTION_BLUR : XS_GRAPHICS_BLOOM, dv);
 #else
-        recomp_env_set(blur ? RENV_GFX_MOTION_BLUR : RENV_GFX_BLOOM, v ? "1" : "0");
+        {
+            char sv[32];
+            snprintf(sv, sizeof sv, "%g", dv);   /* a strength 0..1 (BO-212) */
+            recomp_env_set(blur ? RENV_GFX_MOTION_BLUR : RENV_GFX_BLOOM, sv);
+        }
 #endif
         /* With the values the title would draw the effects by: the track's
          * bloom Threshold and Intensity (0x7397C0, ValueDB/TrackBloom) and
          * the first player's blur strength (the effect block at 0x4D6340,
          * +0x58: sub_00179FD0). */
-        fprintf(stderr, "BO3_FX_AT: flip %u, %s = %d (bloom threshold %.3f"
+        fprintf(stderr, "BO3_FX_AT: flip %u, %s = %g (bloom threshold %.3f"
                 " intensity %.3f, blur strength %.3f)\n", flip,
-                blur ? "graphics.motion_blur" : "graphics.bloom", v != 0,
+                blur ? "graphics.motion_blur" : "graphics.bloom", dv,
                 g_xbox_mem_offset ? HD_MF(0x7397C0) : 0.0f,
                 g_xbox_mem_offset ? HD_MF(0x7397C4) : 0.0f,
                 g_xbox_mem_offset ? HD_MF(0x4D6340 + 0x58) : 0.0f);
@@ -1598,6 +1708,7 @@ static void host_install_crash_handler(void)
 
 #endif /* _WIN32 */
 
+void bo3_pcache_manifest_register(const char *xbe_path);   /* pcmanifest.c */
 static const char *s_xbe_path = BO3_XBE_DEFAULT;
 static const char *s_save_dir = BO3_SAVE_DIR;
 
@@ -1961,6 +2072,32 @@ static void uw_stage_render(void)
     bo3_score_board_render();
 }
 
+/* BO-110 (HDR prototype, RECOMP_DEBUG=hdr): the start and the end of a
+ * view's 3D (config/patches.json hdr_scene / hdr_ui), handed to the
+ * toolkit as places in the push buffer: where the title's D3D will write
+ * its next command, the device's m_pPut (D3D__pDevice at 0x35FB48, m_pPut
+ * at +0; sub_0034CBF0 writes FLIP_STALL there). The executor runs behind
+ * the guest, so the backend learns the change when its walk reaches that
+ * word, in order with the draws around it. */
+void nv2a_pb_stream_mark(uint32_t va, uint32_t tag);   /* toolkit nv2a_pb_state.h */
+int  nv2a_host_hdr(void);                               /* toolkit nv2a_backend_common.h */
+static void hdr_mark(uint32_t tag)
+{
+    uint32_t dev, put;
+    /* graphics.hdr (live) or RECOMP_DEBUG=hdr: before, only the debug
+     * switch marked, so the setting alone never gave the scene its light. */
+    if (!nv2a_host_hdr())
+        return;
+    dev = HD_M32(0x35FB48);
+    if (!dev)
+        return;
+    put = HD_M32(dev);
+    if (put)
+        nv2a_pb_stream_mark(put, tag);
+}
+static void hdr_scene(void) { hdr_mark(1); }
+static void hdr_ui(void) { hdr_mark(0); }
+
 static void uw_flip(void)
 {
     uint32_t n = s_uw_flips + 1;
@@ -2227,6 +2364,64 @@ static void save_import_at_start(int argc, char **argv)
     else if (!recomp_user_dir(RECOMP_DIR_DATA, BO3_USER_DIR, root, sizeof root))
         return;
     recomp_save_import_apply(root, BO3_TITLE_ID, s_import_report, sizeof s_import_report);
+    xbox_SaveImportCleanup(root);       /* the Xbox import's converted copy (BO-209) */
+#endif
+}
+
+/* BO-209: --import-save <folder or .zip>: a Burnout 3 save from an original
+ * Xbox or xemu is signed again for the port and put in place, with the save in
+ * use backed up first. A program of its own, like --version: no game starts.
+ * 0 imported, 1 not. */
+static int import_save_cli(const char *path)
+{
+#if defined(BO3_HAVE_REPORTS)
+    char root[1024], out[1024], info[400], err[1400], report[2600], backup[1024];
+    const char *ov = getenv("RECOMP_SAVE_DIR");
+    int r;
+
+    if (!path || !*path) {
+        fprintf(stderr, "usage: --import-save <save folder, a folder that holds it, or a .zip>\n");
+        return 1;
+    }
+    if (!(ov && *ov))
+        bo3_user_dirs_init();           /* the old-name folder moves first, as in a start */
+    if (ov && *ov)
+        snprintf(root, sizeof root, "%s", ov);
+    else if (!recomp_user_dir(RECOMP_DIR_DATA, BO3_USER_DIR, root, sizeof root)) {
+        fprintf(stderr, "Import failed: the save folder could not be found.\n");
+        return 1;
+    }
+    recomp_fs_mkdir_p(root);
+    if (recomp_instance_lock(root, 0) == 0) {
+        fprintf(stderr, "Import failed: Takedawn is running with this save folder. Close it first.\n");
+        return 1;
+    }
+    if (!xbox_SaveImportPrepare(path, BO3_TITLE_ID, root, root, out, sizeof out, info, sizeof info,
+                                err, sizeof err)) {
+        fprintf(stderr, "Import failed: %s\n", err);
+        return 1;
+    }
+    if (!recomp_save_import_stage(root, out, BO3_TITLE_ID, err, sizeof err)) {
+        fprintf(stderr, "Import failed: %s\n", err);
+        xbox_SaveImportCleanup(root);
+        return 1;
+    }
+    /* The usual backup first (the start-up one: UDATA and TDATA to backup/<date>), then the
+     * import, which also sets the save in use aside in save-before-import/. */
+    if (recomp_save_backup(root, (int)recomp_env_int(RENV_SAVE_BACKUPS, 5), backup, sizeof backup) && backup[0])
+        printf("[SAVE] backup: %s\n", backup);
+    r = recomp_save_import_apply(root, BO3_TITLE_ID, report, sizeof report);
+    xbox_SaveImportCleanup(root);
+    if (r != 1) {
+        fprintf(stderr, "Import failed: %s\n", report[0] ? report : "nothing was imported.");
+        return 1;
+    }
+    printf("%s\n%s\nStart Takedawn to play it.\n", info, report);
+    return 0;
+#else
+    (void)path;
+    fprintf(stderr, "--import-save is not in this build.\n");
+    return 1;
 #endif
 }
 
@@ -2467,6 +2662,8 @@ int main(int argc, char **argv)
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--version"))
             return bo3_version_main();
+        if (!strcmp(argv[i], "--import-save"))
+            return import_save_cli(i + 1 < argc ? argv[i + 1] : NULL);
 #if !defined(__ANDROID__)
         /* --install and --data-status take the whole line but their own
          * word, so that --data (or --dest) may stand before or after them:
@@ -2582,8 +2779,9 @@ int main(int argc, char **argv)
                             "       %s --build-shaders [--cache-dir <dir>] [--scenes a,b]"
                             " [--force] [--status]\n"
                             "       %s --bug-report [--out <dir>]\n"
+                            "       %s --import-save <Xbox save folder or .zip>\n"
                             "       %s --version\n",
-                    self, self, self, self, self, self);
+                    self, self, self, self, self, self, self);
             return 2;
         } else {
             s_xbe_path = argv[i];
@@ -2665,10 +2863,6 @@ int main(int argc, char **argv)
     if (!bug_report)
         XR_NOTICE("%s", recomp_restart_note());
 #endif
-    if (!bug_report && !XR_DIAG_ON())
-        XR_NOTICE("[LOG] diagnostic logging is off: errors and the start-up facts only (%s)."
-                  " Advanced > Diagnostic logging in the overlay, or RECOMP_LOG_DIAG=1,"
-                  " writes the full log\n", xr_log_source());
 #if defined(_WIN32) && defined(BO3_HAVE_UTF8_ARGS)
     if (!bug_report)
         fprintf(stderr, s_utf8_args
@@ -2682,6 +2876,10 @@ int main(int argc, char **argv)
      * a RECOMP_* variable the user set wins over it, it wins over the
      * defaults below (xbox_settings.h). */
     xbox_SettingsInit(BO3_USER_DIR);
+    /* The saved diagnostic_log is in force from here (BO-193); the one line
+     * says the state and what decided it. */
+    if (!bug_report)
+        xr_log_announce();
     xbox_OverlaySetAbout(bo3_version_long());
     /* The menu's own fonts for the overlay (BO-80): GlobalFont and HeadFont,
      * the two DXT5 atlases and glyph tables inside the US retail
@@ -2726,8 +2924,60 @@ int main(int argc, char **argv)
             const struct nv2a_texrep_variant *sheets = bo3_glyphs_sheets(&n_sheets);
             xbox_OverlaySetPadSheets(sheets, n_sheets);
         }
+        /* More of them (BO-190): the AUDIO page's volume bar, the tick and
+         * the ring for the switches (Global.txd), the padlock for a setting
+         * the environment fixes (Data/Frontend.txd, its own size and
+         * SHA-256 from the manifest). */
+        {
+            static const char global_sha[] = "fbee55d041d16b71b59ec3f460f0c580e8299bb303b9fe1dd92f77a90d0744a9";
+            static const char front_sha[] = "b5d4dd9b5e2249ab4b135343a0eb031f9e444d17a65c8bccaafdaa4bd0c9c1cd";
+            char front[1100];
+            snprintf(front, sizeof front, "%.*sData/Frontend.txd", slash ? (int)(slash - s_xbe_path + 1) : 0,
+                     s_xbe_path);
+            xbox_overlay_sprite_file more[XBOX_OVERLAY_ART2_COUNT];
+            more[XBOX_OVERLAY_ART2_VOLUMEBAR] = (xbox_overlay_sprite_file){ txd, 1470080ull, global_sha, 0x155d80, 128, 32, 8 };
+            more[XBOX_OVERLAY_ART2_TICK] = (xbox_overlay_sprite_file){ txd, 1470080ull, global_sha, 0x144b80, 64, 64, 5 };
+            more[XBOX_OVERLAY_ART2_CIRCLE] = (xbox_overlay_sprite_file){ txd, 1470080ull, global_sha, 0x69f00, 32, 32, 5 };
+            more[XBOX_OVERLAY_ART2_PADLOCK] = (xbox_overlay_sprite_file){ front, 7067008ull, front_sha, 0x355c80, 32, 32, 8 };
+            xbox_OverlaySetGameArtMore(more);
+        }
         xbox_OverlaySetGameArt(txd, 1470080ull,
                                "fbee55d041d16b71b59ec3f460f0c580e8299bb303b9fe1dd92f77a90d0744a9", art);
+    }
+    /* The menu's own sounds for the overlay (BO-190): raw mono 16-bit PCM
+     * waves in sound/Fe.awd and sound/Generic.awd of the player's install
+     * (offsets, lengths and rates from the files' wave tables; sizes and
+     * SHA-256 from the install manifest). Which the title plays for what,
+     * from a trace of its menus (RECOMP_MIX_TRACE): Vertical for a cursor
+     * move, a value change and a page that comes in (the pause menu opening),
+     * Select for A, Back for B and for the pause menu closing. The levels are
+     * the ones it plays them at (front end, effects volume as shipped).
+     * Another file, or none: the overlay stays silent. */
+    {
+        static const char fe_sha[] = "7032da847168891e2873cd07a198840f86e744fbb278fef9eaac2e32922baac6";
+        static const char gen_sha[] = "94ef859b45ccd54ebd9266ce94259d50d2af628582cfa5758b4c66b8a87f0c1c";
+        char fe[1100], gen[1100];
+        const char *slash = strrchr(s_xbe_path, '/');
+#if defined(_WIN32)
+        const char *bs = strrchr(s_xbe_path, '\\');
+        if (bs && (!slash || bs > slash))
+            slash = bs;
+#endif
+        const int dl = slash ? (int)(slash - s_xbe_path + 1) : 0;
+        snprintf(fe, sizeof fe, "%.*ssound/Fe.awd", dl, s_xbe_path);
+        snprintf(gen, sizeof gen, "%.*ssound/Generic.awd", dl, s_xbe_path);
+        const xbox_overlay_sound vertical = { fe, 3180544ull, fe_sha, 0x430a0, 15912, 32000, -15.5f };
+        const xbox_overlay_sound select = { gen, 1681408ull, gen_sha, 0x175d00, 29376, 22050, -16.8f };
+        const xbox_overlay_sound back = { fe, 3180544ull, fe_sha, 0x7d030, 35584, 32000, -22.8f };
+        xbox_overlay_sound cues[XBOX_OVERLAY_SND_COUNT];
+        cues[XBOX_OVERLAY_SND_MOVE] = vertical;
+        cues[XBOX_OVERLAY_SND_CHANGE] = vertical;
+        cues[XBOX_OVERLAY_SND_SELECT] = select;
+        cues[XBOX_OVERLAY_SND_BACK] = back;
+        cues[XBOX_OVERLAY_SND_OPEN] = vertical;
+        cues[XBOX_OVERLAY_SND_CLOSE] = back;
+        cues[XBOX_OVERLAY_SND_PAGE] = vertical;
+        xbox_OverlaySetMenuSounds(cues, "UI/HUD");      /* the mixer's bus (mixer.c) */
     }
     /* The Advanced page's "Check for updates" (BO-100): the one request to
      * GitHub's latest-release record is made only when that row is pressed.
@@ -2746,6 +2996,9 @@ int main(int argc, char **argv)
 #if defined(__ANDROID__)
     xbox_OverlaySetHostRows(3, android_driver_row);
 #endif
+#else
+    if (!bug_report)
+        xr_log_announce();   /* no settings file in this build: the build default */
 #endif
     /* The opt-in guest patches of config/patches.json (BO-79): the US disc's
      * own metric display, behind the language index. Off (mph and miles, as
@@ -2784,6 +3037,10 @@ int main(int argc, char **argv)
      * read false; docs/effects.md. */
     recomp_patch_enable("graphics.bloom", RENV_GFX_BLOOM);
     recomp_patch_enable("graphics.motion_blur", RENV_GFX_MOTION_BLUR);
+    /* BO-212: both are strengths 0..1; between, the bloom's weight in the
+     * frame pass and the blur's opacity are times these. */
+    recomp_patch_set_var_fn("bloom_strength", bloom_strength);
+    recomp_patch_set_var_fn("blur_strength", blur_strength);
     /* BO-111: the title halves its frame rate (presentation interval 2, two
      * simulation steps a frame) while a crash or takedown camera is on. At
      * graphics.crash_60fps = true (RECOMP_GFX_CRASH_60FPS=1) the stage's
@@ -2799,6 +3056,13 @@ int main(int argc, char **argv)
      * docs/split-screen.md. */
     recomp_patch_enable("graphics.split_60fps", RENV_GFX_SPLIT_60FPS);
     recomp_patch_enable("audio.split_music", RENV_AUDIO_SPLIT_MUSIC);
+    /* BO-159: a one-player stage starts the title's simulation stepper in its
+     * one-step-a-frame mode, so a host below 60 plays the race in slow
+     * motion until the first crash camera ends (the title then switches to
+     * its wall-clock mode itself). At
+     * game.race_clock = true (RECOMP_GAME_RACE_CLOCK=1) the start stores the
+     * wall-clock mode itself; off as shipped. docs/race-clock.md. */
+    recomp_patch_enable("game.race_clock", RENV_GAME_RACE_CLOCK);
     /* BO-112: the distances at which the title swaps a race car's or a
      * traffic vehicle's model for a simpler one (15/30/60 m and 20/80 m),
      * times 2 or 4 at graphics.vehicle_detail = far / farthest
@@ -2817,6 +3081,8 @@ int main(int argc, char **argv)
     recomp_patch_on_mark("uw_fe_setup", uw_fe_setup);
     recomp_patch_on_mark("uw_stage_render", uw_stage_render);
     recomp_patch_on_mark("uw_flip", uw_flip);
+    recomp_patch_on_mark("hdr_scene", hdr_scene);
+    recomp_patch_on_mark("hdr_ui", hdr_ui);
     hud_dump_start();
     hud_mon_start();
     fx_at_start();
@@ -3037,9 +3303,12 @@ int main(int argc, char **argv)
 #ifdef XBOXRECOMP_HAVE_OVERLAY
     xbox_SettingsFinish();              /* the last default is in */
 #endif
+    bo3_pcache_manifest_register(s_xbe_path);  /* BO-208: the shipped shader coverage list */
     host_enhance_init();
     bo3_glyphs_init();                  /* input.glyphs: the prompts for the pad in use */
     bo3_led_signs_init();               /* the tunnel LED signs stay lit (BO-176) */
+    bo3_hdr_sun_init();                 /* the sun's disc, a soft profile with HDR (BO-203) */
+    bo3_hdr_gains_init();               /* the boost's light brighter with HDR (BO-110) */
     if (bug_report) {
 #if defined(BO3_HAVE_BUG_REPORT)
         return host_bug_report_cli();

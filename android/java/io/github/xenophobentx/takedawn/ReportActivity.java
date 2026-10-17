@@ -163,6 +163,7 @@ public class ReportActivity extends Activity {
             Os.setenv("XDG_DATA_HOME", dir, true);
             Os.setenv("XDG_CACHE_HOME", getCacheDir().getAbsolutePath(), true);
             Os.setenv("HOME", getFilesDir().getAbsolutePath(), true);
+            Os.setenv("RECOMP_RENDER_SHADER_CACHE", new File(getFilesDir(), "graphics").getAbsolutePath(), true);   // BO-208
             Os.setenv("RECOMP_ANDROID_LIB_DIR", getApplicationInfo().nativeLibraryDir, true);
             System.loadLibrary("SDL2");
             System.loadLibrary("main");

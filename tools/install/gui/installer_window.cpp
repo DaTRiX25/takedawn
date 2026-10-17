@@ -35,6 +35,7 @@
 #include <QStandardPaths>
 #include <QStorageInfo>
 #include <QSysInfo>
+#include <QTemporaryDir>
 #include <QTextStream>
 #include <QToolButton>
 #include <QUrl>
@@ -47,6 +48,9 @@
 #include <vector>
 #ifdef Q_OS_LINUX
 #include <unistd.h>
+#endif
+#ifdef Q_OS_WIN
+#include <windows.h>
 #endif
 
 #include "app_icon.h"
@@ -332,11 +336,25 @@ InstallerWindow::InstallerWindow(const LaunchConfig& config, QWidget* parent) : 
   }
   browser_->SetNativeOffered(!couch_);
   connect(browser_, &DiscBrowser::Chosen, this, [this](const QString& path) {
+    const bool dest = browse_dest_;
     CloseBrowser();
-    SetDisc(path);
+    if (dest) SetDest(path);
+    else SetDisc(path);
   });
   connect(browser_, &DiscBrowser::Cancelled, this, &InstallerWindow::CloseBrowser);
-  connect(browser_, &DiscBrowser::NativeRequested, this, &InstallerWindow::NativeImageDialog);
+  connect(browser_, &DiscBrowser::NativeRequested, this, [this] {
+    if (browse_dest_) NativeDestDialog();
+    else NativeImageDialog();
+  });
+  connect(change_, &QToolButton::clicked, this, &InstallerWindow::ChangeDest);
+  connect(reset_, &QToolButton::clicked, this, [this] {
+    if (!default_root_.isEmpty()) SetDest(default_root_, true);
+  });
+  ask_use_anyway_ = [this](const QString& warning) {
+    if (config_.test) return true;
+    return QMessageBox::question(this, windowTitle(), warning + "\n\n" + tr("Use this folder anyway?")) ==
+           QMessageBox::Yes;
+  };
   connect(found_use_, &QToolButton::clicked, this, [this] {
     const QString path = found_path_;
     HideFound();
@@ -517,15 +535,27 @@ QWidget* InstallerWindow::BuildInstallSection() {
   grid->setColumnStretch(2, 1);
   cur->addWidget(rows_host_);
 
-  // Where it goes: the game's own folder, not a choice.
+  // Where it goes: the game's own folder unless the player picks another (BO-197).
   auto* dest_row = new QHBoxLayout;
   dest_row->setSpacing(8);
   auto* dest_caption = new QLabel(tr("Installs to"));
   dest_caption->setObjectName("destCaption");
   Hint(dest_caption);
   dest_label_ = new ElidedLabel;
+  change_ = new QToolButton;
+  change_->setText(tr("Change..."));
+  change_->setToolTip(tr("Install the game's data in another folder or on another drive. The game finds it there "
+                         "at every start."));
+  reset_ = new QToolButton;
+  reset_->setText(tr("Default"));
+  for (QToolButton* b : {change_, reset_}) {
+    b->setMinimumHeight(g_control_height);
+    b->setMinimumWidth(couch_ ? 130 : 96);
+  }
   dest_row->addWidget(dest_caption);
   dest_row->addWidget(dest_label_, 1);
+  dest_row->addWidget(change_);
+  dest_row->addWidget(reset_);
   cur->addLayout(dest_row);
   space_label_ = new QLabel;
   space_label_->setWordWrap(true);
@@ -535,7 +565,7 @@ QWidget* InstallerWindow::BuildInstallSection() {
   cur->addWidget(space_label_);
 
   // The shader pre-build: ticked by default (BO-93), the player can untick it; what it costs said plainly.
-  shaders_box_ = new QCheckBox(tr("Prepare graphics for smooth first races (about 2 minutes, ~10 MB)"));
+  shaders_box_ = new QCheckBox(tr("Prepare graphics for smooth first races (a few seconds, ~2 MB)"));
   shaders_box_->setMinimumHeight(couch_ ? 44 : 26);
   shaders_box_->setToolTip(tr("The game plays a short race and a crash event by itself, with no window and no sound, so "
                               "the graphics are ready before your first race."));
@@ -739,6 +769,11 @@ QStringList InstallerWindow::DataArgs() const {
   return config_.dest.isEmpty() ? QStringList() : QStringList{"--data", config_.dest};
 }
 
+QStringList InstallerWindow::StatusArgs() const {
+  if (!config_.dest.isEmpty() || target_.isEmpty()) return DataArgs();
+  return QStringList{"--data", target_};
+}
+
 void InstallerWindow::Start() {
   if (started_) return;
   started_ = true;
@@ -760,6 +795,8 @@ void InstallerWindow::QueryStatus() {
     if (e.kind == Event::Kind::Log && e.step == "data") {
       const QString key = e.text.section(' ', 0, 0), value = e.text.section(' ', 1);
       if (key == "root") data_root_ = QDir::cleanPath(value);
+      else if (key == "place" && target_.isEmpty()) data_place_ = value;  // where the game looks by itself
+      else if (key == "default") default_root_ = QDir::cleanPath(value);
       else if (key == "disc") disc_name_ = value;
       else if (key == "files") data_files_ = value.toInt();
       else if (key == "bytes") data_bytes_ = value.toLongLong();
@@ -780,7 +817,7 @@ void InstallerWindow::QueryStatus() {
     if (!*ok && status_code_.isEmpty() && result.started) status_code_ = "not-installed";  // a program without the query
     OnStatus(result);
   });
-  proc->Start(program_, QStringList{"--data-status"} + DataArgs(), ChildEnvironment(), QString());
+  proc->Start(program_, QStringList{"--data-status"} + StatusArgs(), ChildEnvironment(), QString());
 }
 
 void InstallerWindow::OnStatus(const DriverProcess::Result& result) {
@@ -792,9 +829,22 @@ void InstallerWindow::OnStatus(const DriverProcess::Result& result) {
   dest_label_->SetFullText(data_root_.isEmpty() ? tr("the game's own data folder") : QDir::toNativeSeparators(data_root_));
   dest_label_->setToolTip(QDir::toNativeSeparators(data_root_));
   RefreshSpace();
-  AppendLog("$ " + program_ + " --data-status " + DataArgs().join(' '));
+  AppendLog("$ " + program_ + " --data-status " + StatusArgs().join(' '));
   AppendLog(status_code_.isEmpty() ? "data: " + status_text_ : "data: " + status_code_ + ": " + status_text_);
+  RefreshDestControls();
 
+  if (status_code_.isEmpty() && !target_.isEmpty() && !DestFixed()) {
+    // The chosen folder holds the game's data already (moved there by hand, or an
+    // earlier install): checked where it lies and kept as the game's folder, without a disc.
+    verify_ = true;
+    source_ = data_root_ + "/" + kGameDir;
+    SetNote(NoteTone::Info, tr("The game's data is already in this folder."),
+            tr("Takedawn checks it where it is and uses it from now on. Nothing is copied and no disc is needed."),
+            false);
+    SetDiscState(DiscState::Empty, QString(), QString(), QString());
+    StartInstall();
+    return;
+  }
   if (status_code_.isEmpty()) {
     // Whole already: nothing to do but play.
     BuildRows({"disc"});
@@ -819,6 +869,14 @@ void InstallerWindow::OnStatus(const DriverProcess::Result& result) {
     SetDiscState(DiscState::Empty, QString(), QString(), QString());
     StartInstall();
     return;
+  }
+  if (status_code_ == "not-installed" && data_place_ == "saved" && target_.isEmpty() && !data_root_.isEmpty() &&
+      !QFileInfo(data_root_).isDir()) {
+    // The folder chosen before is gone: a drive not connected, or the data moved by hand.
+    SetNote(NoteTone::Warning, tr("The folder chosen for the game's data is not there."),
+            tr("If it is on a drive that is not connected, connect it and start Takedawn again. If you moved the "
+               "data, press Change... and pick its new folder. Or install it again here."),
+            false);
   }
   SetPhase(Phase::Idle);
   SetStatus(tr("Choose your disc image or folder to begin."));
@@ -864,6 +922,201 @@ void InstallerWindow::RefreshSpace() {
   }
   // Before the copy starts there is no point in pressing Install; once it has failed, Resume stays.
   if (phase_ == Phase::Idle) primary_->setEnabled(disc_state_ == DiscState::Valid && !low_space_);
+}
+
+// ------------------------------------------------- where the data goes
+
+namespace {
+
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+const Qt::CaseSensitivity kPathCase = Qt::CaseInsensitive;
+#else
+const Qt::CaseSensitivity kPathCase = Qt::CaseSensitive;
+#endif
+
+bool SamePath(const QString& a, const QString& b) {
+  return QDir::cleanPath(a).compare(QDir::cleanPath(b), kPathCase) == 0;
+}
+
+// `path` is `dir` or a folder inside it.
+bool IsInside(const QString& path, const QString& dir) {
+  const QString p = QDir::cleanPath(path), d = QDir::cleanPath(dir);
+  if (d.isEmpty()) return false;
+  return p.compare(d, kPathCase) == 0 || p.startsWith(d.endsWith('/') ? d : d + "/", kPathCase);
+}
+
+enum class DriveKind { Local, Network, Removable };
+
+// What kind of drive a folder (or the nearest one that exists) is on.
+DriveKind KindOfDrive(const QString& folder) {
+  const QString nearest = NearestExisting(folder);
+#ifdef Q_OS_WIN
+  if (nearest.startsWith("//") || nearest.startsWith("\\\\")) return DriveKind::Network;
+  const QString root = QStorageInfo(nearest).rootPath();
+  const std::wstring w = QDir::toNativeSeparators(root.endsWith('/') ? root : root + "/").toStdWString();
+  switch (GetDriveTypeW(w.c_str())) {
+    case DRIVE_REMOTE: return DriveKind::Network;
+    case DRIVE_REMOVABLE: return DriveKind::Removable;
+    default: return DriveKind::Local;
+  }
+#else
+  const QStorageInfo info(nearest);
+  const QString fs = QString::fromLatin1(info.fileSystemType()).toLower();
+  static const QStringList kNetwork{"nfs", "nfs4", "smbfs", "cifs", "smb3", "afpfs", "webdav", "sshfs",
+                                    "fuse.sshfs", "9p", "davfs", "fuse.rclone"};
+  if (kNetwork.contains(fs)) return DriveKind::Network;
+  const QString root = info.rootPath();
+#ifdef Q_OS_MACOS
+  if (root.startsWith("/Volumes/")) return DriveKind::Removable;
+#else
+  if (root.startsWith("/media/") || root.startsWith("/run/media/") || root.startsWith("/mnt/")) return DriveKind::Removable;
+#endif
+  return DriveKind::Local;
+#endif
+}
+
+}  // namespace
+
+bool InstallerWindow::DestFixed() const { return !config_.dest.isEmpty() || data_place_ == "checkout"; }
+
+// Change... and Default: there unless the root was named for the game (--data,
+// TAKEDAWN_DATA: a choice here would not reach it), usable whenever nothing runs.
+void InstallerWindow::RefreshDestControls() {
+  if (!change_) return;
+  const bool fixed = DestFixed();
+  const bool can = !fixed && !program_.isEmpty() &&
+                   (phase_ == Phase::Idle || phase_ == Phase::Paused || phase_ == Phase::Failed || phase_ == Phase::Done);
+  change_->setVisible(!fixed);
+  change_->setEnabled(can);
+  reset_->setVisible(!fixed && !default_root_.isEmpty() && !data_root_.isEmpty() && !SamePath(data_root_, default_root_));
+  reset_->setEnabled(can);
+  reset_->setToolTip(tr("Back to the default folder, %1.").arg(QDir::toNativeSeparators(default_root_)));
+  if (!config_.dest.isEmpty()) dest_label_->setToolTip(tr("%1 (set for the game with --data or TAKEDAWN_DATA)")
+                                                           .arg(QDir::toNativeSeparators(data_root_)));
+}
+
+void InstallerWindow::ChangeDest() {
+  if (DestFixed() || phase_ == Phase::Running || phase_ == Phase::Asking || phase_ == Phase::Broken) return;
+  if (use_browser_) OpenDestBrowser();
+  else NativeDestDialog();
+}
+
+// The built-in list (Linux, a controller): the same places as for the disc, the
+// cards and drives among them.
+void InstallerWindow::OpenDestBrowser() {
+  const QString home = config_.home.isEmpty() ? QDir::homePath() : config_.home;
+  const QStringList media = config_.home.isEmpty() ? discs::SystemMediaRoots() : config_.media_roots;
+  browser_->SetPlaces(config_.test && config_.home.isEmpty() ? QList<discs::Place>() : discs::Places(home, media));
+  browse_dest_ = true;
+  browser_->SetFolderMode(true);
+  stack_->setCurrentWidget(browser_);
+  browser_->Open();
+  RefreshHints();
+}
+
+void InstallerWindow::NativeDestDialog() {
+  const QString start = data_root_.isEmpty() ? QDir::homePath() : NearestExisting(data_root_);
+  // Window modal: on macOS a sheet on this window, so it opens on the window's display.
+  QFileDialog dialog(this, tr("Choose where to install the game's data"), start);
+  dialog.setFileMode(QFileDialog::Directory);
+  dialog.setOption(QFileDialog::ShowDirsOnly);
+  dialog.setWindowModality(Qt::WindowModal);
+  const QString picked = dialog.exec() == QDialog::Accepted && !dialog.selectedFiles().isEmpty()
+                             ? dialog.selectedFiles().first() : QString();
+  if (stack_->currentWidget() == browser_) CloseBrowser();
+  if (!picked.isEmpty()) SetDest(picked);
+}
+
+// The folder the data goes in: the one picked when it is empty, is (or is in) an
+// install, or is called Takedawn; else a "Takedawn" folder inside it, so the files
+// do not end up loose among others.
+QString InstallerWindow::DestFolderFor(const QString& picked_in) const {
+  QString picked = QDir::cleanPath(QDir(picked_in).absolutePath());
+  const QFileInfo info(picked);
+  if (info.fileName() == kGameDir && QFileInfo::exists(info.absolutePath() + "/.complete")) {
+    return info.absolutePath();  // the game's own folder inside an install: its root
+  }
+  if (!info.isDir()) return picked;
+  const QDir dir(picked);
+  if (dir.exists(kGameDir) || dir.exists(".complete") || dir.exists("install.journal")) return picked;
+  if (dir.isEmpty(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System)) return picked;
+  if (info.fileName().compare("Takedawn", Qt::CaseInsensitive) == 0) return picked;
+  return dir.filePath("Takedawn");
+}
+
+QString InstallerWindow::CheckDest(const QString& folder, QString* warning) const {
+  warning->clear();
+  if (folder.isEmpty() || QDir::isRelativePath(folder)) return tr("Choose a whole folder path.");
+  const QFileInfo info(folder);
+  if (info.exists() && !info.isDir()) return tr("%1 is a file, not a folder.").arg(QDir::toNativeSeparators(folder));
+  // The program's own folder is replaced by an update (and a macOS app or an
+  // AppImage cannot be written at all).
+  QStringList program_dirs{QCoreApplication::applicationDirPath()};
+  if (!program_.isEmpty()) program_dirs << QFileInfo(program_).absolutePath();
+  const QString appdir = qEnvironmentVariable("APPDIR");  // an AppImage's mounted files
+  if (!appdir.isEmpty()) program_dirs << appdir;
+  for (const QString& d : QStringList(program_dirs)) {
+    const int app = d.indexOf(".app/Contents", 0, Qt::CaseInsensitive);
+    if (app > 0) program_dirs << d.left(app + 4);  // the whole bundle
+#ifdef Q_OS_WIN
+    program_dirs << d + ".prev";  // the setup keeps the version before in <folder>.prev
+#endif
+  }
+  for (const QString& d : program_dirs) {
+    if (IsInside(folder, d)) {
+      return tr("That folder is inside Takedawn's program folder, which an update replaces. Choose a folder "
+                "outside it.");
+    }
+  }
+  // Writable: a folder made and removed where the data's folder would be made.
+  {
+    QTemporaryDir probe(NearestExisting(folder) + "/.takedawn-check-XXXXXX");
+    if (!probe.isValid()) {
+      return tr("Takedawn cannot write in %1. Choose a folder you can write to.")
+          .arg(QDir::toNativeSeparators(NearestExisting(folder)));
+    }
+  }
+  switch (KindOfDrive(folder)) {
+    case DriveKind::Network:
+      *warning = tr("This folder is on a network drive. The game reads its data while you play, so a slow or "
+                    "lost connection makes it stutter or stop.");
+      break;
+    case DriveKind::Removable:
+      *warning = tr("This folder is on a removable or external drive. It has to be connected every time you "
+                    "play.");
+      break;
+    case DriveKind::Local: break;
+  }
+  return QString();
+}
+
+bool InstallerWindow::SetDest(const QString& picked, bool exact) {
+  if (DestFixed() || phase_ == Phase::Running || phase_ == Phase::Asking) return false;
+  const QString folder = exact ? QDir::cleanPath(picked) : DestFolderFor(picked);
+  QString warning;
+  const QString why = CheckDest(folder, &warning);
+  AppendLog("destination: " + QDir::toNativeSeparators(folder) + (why.isEmpty() ? QString() : " refused: " + why) +
+            (warning.isEmpty() ? QString() : " warning: " + warning));
+  if (!why.isEmpty()) {
+    SetNote(NoteTone::Warning, tr("The game's data cannot go there."), why, false);
+    SetStatus(tr("Choose another folder."));
+    return false;
+  }
+  if (!warning.isEmpty() && !exact && !ask_use_anyway_(warning)) return false;
+  target_ = folder;
+  // A fresh look at that folder: whatever the run before had found is not about it.
+  if (verify_) {
+    verify_ = false;
+    source_ = disc_state_ == DiscState::Valid ? disc_valid_for_ : QString();
+  }
+  ClearNote();
+  play_->setVisible(false);
+  progress_->setValue(0);
+  clock_label_->clear();
+  BuildRows({"disc"});
+  if (disc_path_.isEmpty()) SetDiscState(DiscState::Empty, QString(), QString(), QString());
+  QueryStatus();
+  return true;
 }
 
 // -------------------------------------------------------------- the disc
@@ -937,12 +1190,16 @@ void InstallerWindow::OpenBrowser() {
   const QString home = config_.home.isEmpty() ? QDir::homePath() : config_.home;
   const QStringList media = config_.home.isEmpty() ? discs::SystemMediaRoots() : config_.media_roots;
   browser_->SetPlaces(config_.test && config_.home.isEmpty() ? QList<discs::Place>() : discs::Places(home, media));
+  browse_dest_ = false;
+  browser_->SetFolderMode(false);
   stack_->setCurrentWidget(browser_);
   browser_->Open(disc_path_.isEmpty() ? QString() : QFileInfo(disc_path_).absolutePath());
   RefreshHints();
 }
 
 void InstallerWindow::CloseBrowser() {
+  browse_dest_ = false;
+  browser_->SetFolderMode(false);
   stack_->setCurrentWidget(main_page_);
   RefreshHints();
   SettleFocus();
@@ -1216,8 +1473,12 @@ void InstallerWindow::StartInstall() {
 // install, from that folder into itself, which checks it where it lies.
 void InstallerWindow::RunInstall() {
   QStringList args{"--install", QFileInfo(source_).absoluteFilePath()};
-  if (verify_) args << "--dest" << data_root_;
+  // A folder the player chose, or the one chosen before (data-folder.txt): named, and
+  // kept for the next start (--remember; the default folder removes the choice).
+  const bool remember = !DestFixed() && !data_root_.isEmpty() && (!target_.isEmpty() || data_place_ == "saved");
+  if (verify_ || remember) args << "--dest" << data_root_;
   else if (!config_.dest.isEmpty()) args << "--dest" << config_.dest;
+  if (remember) args << "--remember";
   StartStep("disc", args);
 }
 
@@ -1388,8 +1649,14 @@ void InstallerWindow::Succeed() {
   run_millis_ = run_clock_.isValid() ? run_clock_.elapsed() : 0;
   tick_.stop();
   if (verify_ && phase_ == Phase::Running) {
-    SetNote(NoteTone::Info, tr("The earlier install is complete."),
-            tr("Every file matches the disc's list. Nothing had to be copied."), false);
+    if (target_.isEmpty()) {
+      SetNote(NoteTone::Info, tr("The earlier install is complete."),
+              tr("Every file matches the disc's list. Nothing had to be copied."), false);
+    } else {
+      SetNote(NoteTone::Info, tr("The game's data in this folder is complete."),
+              tr("Every file matches the disc's list. Nothing had to be copied. Takedawn uses this folder from now on."),
+              false);
+    }
   }
   if (phase_ == Phase::Running) {
     SetDiscState(DiscState::Valid, tr("The game's data is installed."),
@@ -1878,6 +2145,7 @@ void InstallerWindow::SetPhase(Phase phase) {
     case Phase::Broken: primary_->setText(tr("Quit")); break;
   }
   Q_UNUSED(running);
+  RefreshDestControls();
   RefreshLook();
   RefreshHints();
   SettleFocus();

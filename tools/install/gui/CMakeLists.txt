@@ -16,7 +16,9 @@ cmake_minimum_required(VERSION 3.21)
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../../VERSION" _version_lines)
 list(GET _version_lines 0 TAKEDAWN_VERSION)
 string(STRIP "${TAKEDAWN_VERSION}" TAKEDAWN_VERSION)
-project(takedawn_setup VERSION ${TAKEDAWN_VERSION} LANGUAGES CXX)
+# project() takes only numbers, so a "-beta" suffix stays out of it.
+string(REGEX MATCH "^[0-9]+(\\.[0-9]+)*" _numeric_version "${TAKEDAWN_VERSION}")
+project(takedawn_setup VERSION ${_numeric_version} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,7 +56,7 @@ add_library(takedawn_setup_ui STATIC
     pad_nav.h
 )
 target_include_directories(takedawn_setup_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(takedawn_setup_ui PUBLIC TAKEDAWN_SETUP_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(takedawn_setup_ui PUBLIC TAKEDAWN_SETUP_VERSION="${TAKEDAWN_VERSION}")
 target_link_libraries(takedawn_setup_ui PUBLIC Qt6::Widgets)
 
 # The controller (pad_input.h): SDL's game controller API, the SDL the game

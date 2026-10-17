@@ -1,5 +1,5 @@
 {
-  "about": "Opt-in guest patches (tools.recomp --patches, regen.sh). After each listed load (or store) the generated code calls RECOMP_PATCH_U32 / RECOMP_PATCH_F32, which keeps the title's value unless the setting reads 'when' (src/game/main.c enables game.speed_units: RECOMP_SPEED_UNITS=kmh, BO-79; and display.hud_fix: RECOMP_GFX_HUD_FIX=1, BO-89; both on the overlay's Display page and in settings.toml). The display.hud_fix values are expressions of 'aspect' (16/9 or 4/3, the picture the title was set up for): W = 480*aspect is the 640x480 layout's width at the picture's true shape, (640 - W)/2 its left edge, s = (4/3)/aspect the squeeze that undoes the anamorphic stretch; 'vis_x0' / 'vis_x1' are the frame columns the window shows of the picture as presented (the presenter's overscan crop and 16:10 fill), 'ref_x0' / 'ref_x1' those a 4:3 picture shows in the same window: the HUD's margins are kept from the visible edges at what they are in 4:3. The arithmetic (layout width 480*aspect, offset (640 - width)/2, HUD origin 320*(1 - s)) is that of the PS2 widescreen fix: ThirteenAG/WidescreenFixesPack, source/Burnout3.PCSX2F.WidescreenFix (MIT licence); the Xbox sites were found in this build, with Nahelam's PS2 symbol list (PS2-Game-Mods, Burnout 3 Takedown/Research/SLES_525.85.txt) as the guide to the names. display.ultrawide (RECOMP_DISPLAY_ULTRAWIDE=21:9|32:9|window, BO-94): the camera's aspect and field-of-view factor and the marks that tell the host a stage is set up, drew a frame, and a frame ended; 'aspect' is then the stage's wide aspect, 'frame_aspect' the shown frame's, 'fe_squeeze' the factor that keeps the front-end scene's 16:9 shape over a wide frame. graphics.bloom and graphics.motion_blur (RECOMP_GFX_BLOOM=0, RECOMP_GFX_MOTION_BLUR=0, BO-101; overlay Graphics page): the title's own bloom and blur, on as shipped; at \"0\" the title's own conditions for drawing them read false (docs/effects.md). graphics.vehicle_detail (RECOMP_GFX_VEHICLE_DETAIL=far|farthest, BO-112; overlay Graphics page): the distances at which the title swaps a vehicle's model for a simpler one, times 'vehicle_lod_scale' (2 or 4); as shipped at 'original' (docs/draw-distance.md). graphics.scenery_detail (RECOMP_GFX_SCENERY_DETAIL=far, BO-177; overlay Graphics page): the distance at which a track prop with two models (the pine trees above all) swaps its detailed model for its simple one, times 'scenery_lod_scale'; as shipped at 'original' (docs/draw-distance.md). graphics.crash_60fps (RECOMP_GFX_CRASH_60FPS=1, BO-111; overlay Graphics page): the title's 30 Hz phases, the crash and takedown cameras, at 60: where a one-player stage's update chooses the rate, its 'a crash camera is on' byte reads 0 and the title takes its own full-rate path (docs/crash60.md); off as shipped. graphics.split_60fps (RECOMP_GFX_SPLIT_60FPS=1, BO-116; overlay Graphics page): two-player split screen, which the title runs at its half rate from the stage's set-up to its end, at 60: the request the set-up stores is stored as 0 (docs/split-screen.md); off as shipped. audio.split_music (RECOMP_AUDIO_SPLIT_MUSIC=1, BO-116; overlay Audio page): the title's music manager keeps EA GAMES TRAX silent while more than one player plays; where it compares the player count for that, the count reads 1 (docs/split-screen.md); off as shipped, and off the audio path is the title's own.",
+  "about": "Opt-in guest patches (tools.recomp --patches, regen.sh). After each listed load (or store) the generated code calls RECOMP_PATCH_U32 / RECOMP_PATCH_F32, which keeps the title's value unless the setting reads 'when' (src/game/main.c enables game.speed_units: RECOMP_SPEED_UNITS=kmh, BO-79; and display.hud_fix: RECOMP_GFX_HUD_FIX=1, BO-89; both on the overlay's Display page and in settings.toml). The display.hud_fix values are expressions of 'aspect' (16/9 or 4/3, the picture the title was set up for): W = 480*aspect is the 640x480 layout's width at the picture's true shape, (640 - W)/2 its left edge, s = (4/3)/aspect the squeeze that undoes the anamorphic stretch; 'vis_x0' / 'vis_x1' are the frame columns the window shows of the picture as presented (the presenter's overscan crop and 16:10 fill), 'ref_x0' / 'ref_x1' those a 4:3 picture shows in the same window: the HUD's margins are kept from the visible edges at what they are in 4:3. The arithmetic (layout width 480*aspect, offset (640 - width)/2, HUD origin 320*(1 - s)) is that of the PS2 widescreen fix: ThirteenAG/WidescreenFixesPack, source/Burnout3.PCSX2F.WidescreenFix (MIT licence); the Xbox sites were found in this build, with Nahelam's PS2 symbol list (PS2-Game-Mods, Burnout 3 Takedown/Research/SLES_525.85.txt) as the guide to the names. display.ultrawide (RECOMP_DISPLAY_ULTRAWIDE=21:9|32:9|window, BO-94): the camera's aspect and field-of-view factor and the marks that tell the host a stage is set up, drew a frame, and a frame ended; 'aspect' is then the stage's wide aspect, 'frame_aspect' the shown frame's, 'fe_squeeze' the factor that keeps the front-end scene's 16:9 shape over a wide frame. graphics.bloom and graphics.motion_blur (RECOMP_GFX_BLOOM, RECOMP_GFX_MOTION_BLUR, BO-101, strengths 0 to 1 in tenths since BO-212; overlay Graphics page): the title's own bloom and blur, full strength (1) as shipped; at \"0\" the title's own conditions for drawing them read false, between 0 and 1 the bloom's weight in the frame pass and the blur's opacity are times 'bloom_strength' / 'blur_strength' (docs/effects.md). graphics.vehicle_detail (RECOMP_GFX_VEHICLE_DETAIL=far|farthest, BO-112; overlay Graphics page): the distances at which the title swaps a vehicle's model for a simpler one, times 'vehicle_lod_scale' (2 or 4); as shipped at 'original' (docs/draw-distance.md). graphics.scenery_detail (RECOMP_GFX_SCENERY_DETAIL=far, BO-177; overlay Graphics page): the distance at which a track prop with two models (the pine trees above all) swaps its detailed model for its simple one, times 'scenery_lod_scale'; as shipped at 'original' (docs/draw-distance.md). graphics.crash_60fps (RECOMP_GFX_CRASH_60FPS=1, BO-111; overlay Graphics page): the title's 30 Hz phases, the crash and takedown cameras, at 60: where a one-player stage's update chooses the rate, its 'a crash camera is on' byte reads 0 and the title takes its own full-rate path (docs/crash60.md); off as shipped. graphics.split_60fps (RECOMP_GFX_SPLIT_60FPS=1, BO-116; overlay Graphics page): two-player split screen, which the title runs at its half rate from the stage's set-up to its end, at 60: the request the set-up stores is stored as 0 (docs/split-screen.md); off as shipped. audio.split_music (RECOMP_AUDIO_SPLIT_MUSIC=1, BO-116; overlay Audio page): the title's music manager keeps EA GAMES TRAX silent while more than one player plays; where it compares the player count for that, the count reads 1 (docs/split-screen.md); off as shipped, and off the audio path is the title's own. game.race_clock (RECOMP_GAME_RACE_CLOCK=1, BO-159; overlay Graphics page): a one-player stage starts its simulation stepper in the mode that runs one step a frame whatever the time, and switches to its wall-clock mode only at the end of the first crash camera; the start stores the wall-clock mode instead, so a host below 60 keeps real time from the start (docs/race-clock.md); off as shipped.",
   "patches": [
     {
       "va": "0x00059BF7",
@@ -622,6 +622,30 @@
       "note": "sub_00014860, the front end's set-up, which calls the same camera set-up (sub_0002F380): the title's own 16:9 again."
     },
     {
+      "va": "0x001AE340",
+      "kind": "mark",
+      "name": "hdr_scene",
+      "note": "BO-110: sub_001AE340, a player's view of the world (3D, bloom, the frame pass sub_0003DA90, the radial blur): its start. With RECOMP_DEBUG=hdr the draws from here to hdr_ui keep light past 1.0 (src/game/main.c: the D3D push pointer goes to the toolkit's stream marks). A mark changes nothing in the guest."
+    },
+    {
+      "va": "0x001AE6E6",
+      "kind": "mark",
+      "name": "hdr_ui",
+      "note": "BO-110: sub_001AE340's end (after its last call, sub_000402C0, and the radial blur): what the stage draws after this (countdown, rival marker, the HUD scenes, sub_000536C0) stays at paper white."
+    },
+    {
+      "va": "0x001AE6F0",
+      "kind": "mark",
+      "name": "hdr_scene",
+      "note": "BO-110: sub_001AE6F0, the front end's view of the world (garage, car select): its start."
+    },
+    {
+      "va": "0x001AEA97",
+      "kind": "mark",
+      "name": "hdr_ui",
+      "note": "BO-110: sub_001AE6F0's end (ret 8), after its frame pass and sub_000402C0."
+    },
+    {
       "va": "0x0001A6A0",
       "kind": "mark",
       "name": "uw_stage_render",
@@ -721,17 +745,25 @@
       "va": "0x0003DC3A",
       "kind": "load_f32",
       "setting": "graphics.bloom",
-      "when": "0",
-      "expr": "0",
-      "note": "BO-181: sub_0003DA90, the pass that puts the 3D frame on the back buffer after the bloom call (it runs whether the bloom ran or not), adds the bloom's last 160x120 result with a weight made from the bloom Intensity ([arg+4], the block's +0x54: clamped, times a constant, handed to the combiners). With graphics.bloom off the bloom call is skipped (0x001AE5AA), so that target keeps the last glow drawn and the frame went on adding it: a glow frozen on the picture. Here and at 0x0003DC55 the Intensity reads 0, so the weight is 0; memory keeps the real value. With the bloom on nothing changes."
+      "when": "!1",
+      "expr": "loaded * bloom_strength",
+      "note": "BO-181: sub_0003DA90, the pass that puts the 3D frame on the back buffer after the bloom call (it runs whether the bloom ran or not), adds the bloom's last 160x120 result with a weight made from the bloom Intensity ([arg+4], the block's +0x54: clamped at 2.0, times 0.5, handed to the combiners as the constant's alpha). With graphics.bloom off the bloom call is skipped (0x001AE5AA), so that target keeps the last glow drawn and the frame went on adding it: a glow frozen on the picture. Here and at 0x0003DC55 the Intensity reads 0 at strength 0, so the weight is 0. BO-212: between 0 and 1 the Intensity is times the strength (bloom_strength, the setting in tenths), so the glow added over the frame is that fraction of the original (the weight is linear in it below the clamp: 0.5 x Intensity, 0.5 on the tracks seen); at 1 the patch does not run and nothing changes. Memory keeps the real value."
     },
     {
       "va": "0x0003DC55",
       "kind": "load_f32",
       "setting": "graphics.bloom",
-      "when": "0",
-      "expr": "0",
-      "note": "BO-181: the second load of the same Intensity in sub_0003DA90 (the path below the clamp); see 0x0003DC3A."
+      "when": "!1",
+      "expr": "loaded * bloom_strength",
+      "note": "BO-181: the second load of the same Intensity in sub_0003DA90 (the path below the clamp); see 0x0003DC3A. BO-212: times the strength."
+    },
+    {
+      "va": "0x00041F76",
+      "kind": "load_f32",
+      "setting": "graphics.motion_blur",
+      "when": "!1",
+      "expr": "loaded * blur_strength",
+      "note": "BO-212: sub_00041EC0, the radial blur's draw back over the frame: fld dword ptr [esi + 0x1C], the blur block's opacity (the radial-blur params sub_00179FD0 fills), times 255 into the top byte of the four vertices' diffuse colour. The draw blends SRC_ALPHA / INV_SRC_ALPHA (sf 0x302, df 0x303), so the blurred picture is mixed over the frame by that alpha and its strength is the alpha: times blur_strength (the setting in tenths) the blur is that fraction of the original, and at 0 the alpha is 0 (the blur path itself is skipped at 0 by the sites above). At 1 the patch does not run and nothing changes. Memory keeps the real value. The other blur (sub_000461C0, patched by reading) and the front-end's (sub_000FAC70) stay on or off."
     },
     {
       "va": "0x00042AD5",
@@ -878,6 +910,14 @@
       "when": "1",
       "value": 0,
       "note": "sub_000209A0, the two-player stage's set-up (vtable 0x3A939C; its last instructions): `mov byte ptr [0x4D538D], 1`, the half rate asked for (game object 0x4A71A0 + 0x2E1ED; BO-111, docs/crash60.md), with the stepper's mode 0 stored after it. Nothing in the two-player stage asks again (its update sub_00020AC0 does not look at the crash camera bytes), so split screen is at 30 from here to the stage's release. A store_u8 patch: the byte is stored again as 0, so sub_00016EF0 never puts the half rate in force: interval 1 and one step a frame for the whole stage, its crash cameras included. Sampled once a stage, here: a change shows from the next two-player event. docs/split-screen.md."
+    },
+    {
+      "va": "0x0001A11B",
+      "kind": "store_u32",
+      "setting": "game.race_clock",
+      "when": "1",
+      "value": 1,
+      "note": "sub_0001A000, the start of a one-player stage (vtable 0x3A9ACC: Race, Road Rage, Crash), its last store: `mov dword ptr [0x4D5390], 0`, the simulation stepper's mode (game object 0x4A71A0 + 0x2E1F0, copied into the step timer 0x4D5338 every frame at 0x16AB6). Mode 0 runs one 1/60 s step a frame whatever the time, so a host below 60 plays the race in slow motion; mode 1 runs as many whole steps as the time since the last frame holds (at most 4, the rest dropped; sub_001B58E0, loc_001B5A04 is the only place the two differ). The title stores 1 itself at the end of the first crash camera (0x1A19E), so from there to the finish every race already runs in mode 1 (apart from the crash cameras). A store_u32 patch: the mode is stored again as 1, and the race keeps real time from its start. At a steady 60 the stepper returns 1 step a frame in both modes. The crash cameras (0x1A18B, 0x1A19E), split screen (0x20AB1), pause and results keep their own stores. Sampled once a stage, here: a change shows from the next race. docs/race-clock.md, BO-159."
     },
     {
       "va": "0x0015480D",
